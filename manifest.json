@@ -1,0 +1,39 @@
+{
+  "name": "TRACK — Package Tracker",
+  "short_name": "TRACK",
+  "description": "Manual package tracker for all major freight and shipping carriers",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0a0a0b",
+  "theme_color": "#0a0a0b",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "utilities"],
+  "shortcuts": [
+    {
+      "name": "Add Package",
+      "short_name": "Add",
+      "description": "Add a new package to track",
+      "url": "./index.html#add"
+    },
+    {
+      "name": "Calendar View",
+      "short_name": "Calendar",
+      "description": "View delivery calendar",
+      "url": "./index.html#calendar"
+    }
+  ]
+}

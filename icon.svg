@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background -->
+  <rect width="512" height="512" fill="#0a0a0b" rx="80"/>
+  
+  <!-- Yellow accent bar left -->
+  <rect x="48" y="48" width="16" height="416" fill="#f0e040"/>
+  
+  <!-- TRACK text -->
+  <text x="88" y="200" font-family="Arial Black, sans-serif" font-weight="900"
+        font-size="120" fill="#e8e8ec" letter-spacing="-4">TRK</text>
+  
+  <!-- Dot -->
+  <circle cx="420" cy="185" r="22" fill="#f0e040"/>
+  
+  <!-- Package icon lines -->
+  <rect x="88" y="260" width="336" height="4" fill="#2a2a30"/>
+  <rect x="88" y="300" width="260" height="4" fill="#2a2a30"/>
+  <rect x="88" y="340" width="200" height="4" fill="#2a2a30"/>
+  <rect x="88" y="380" width="140" height="4" fill="#2a2a30"/>
+
+  <!-- Status dot indicators -->
+  <circle cx="370" cy="302" r="14" fill="rgba(68,221,136,0.9)"/>
+  <circle cx="406" cy="302" r="14" fill="rgba(68,153,255,0.9)"/>
+  <circle cx="370" cy="342" r="14" fill="rgba(255,153,51,0.9)"/>
+  <circle cx="406" cy="342" r="14" fill="rgba(255,68,85,0.9)"/>
+</svg>

@@ -1,0 +1,1844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TRACK">
+<meta name="theme-color" content="#0a0a0b">
+<meta name="description" content="Manual package tracker for all major freight and shipping carriers">
+<link rel="manifest" href="manifest.json">
+<!-- Apple touch icon (inline SVG converted — GitHub Pages will serve manifest.json separately) -->
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>TRACK — Package Tracker</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0b;
+    --surface: #111113;
+    --surface2: #1a1a1e;
+    --border: #2a2a30;
+    --accent: #f0e040;
+    --accent2: #40e0d0;
+    --text: #e8e8ec;
+    --muted: #666672;
+    --red: #ff4455;
+    --green: #44dd88;
+    --orange: #ff9933;
+    --blue: #4499ff;
+    --font: Helvetica, Arial, sans-serif;
+    --font-mono: Helvetica, Arial, sans-serif;
+  }
+
+  /* Force dark color scheme so native date picker renders dark */
+  html { color-scheme: dark; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(240,224,64,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(240,224,64,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container { max-width: 980px; margin: 0 auto; padding: 0 20px; position: relative; z-index: 1; }
+
+  /* Header */
+  header { padding: 36px 0 24px; border-bottom: 1px solid var(--border); }
+  .logo { font-family:var(--font); font-weight:800; font-size:11px; letter-spacing:6px; color:var(--accent); text-transform:uppercase; margin-bottom:6px; }
+  header h1 { font-family:var(--font); font-weight:800; font-size:clamp(32px,5vw,56px); line-height:0.9; letter-spacing:-2px; }
+  header h1 span { color:var(--accent); }
+  header p { margin-top:10px; color:var(--muted); font-size:11px; letter-spacing:1px; }
+
+  /* Main tabs */
+  .main-tabs { display:flex; gap:0; border-bottom:1px solid var(--border); margin-bottom:32px; }
+  .main-tab {
+    padding:14px 24px; background:transparent; border:none;
+    border-bottom:3px solid transparent; color:var(--muted);
+    font-family:var(--font); font-size:11px; letter-spacing:2px;
+    text-transform:uppercase; cursor:pointer; transition:all 0.15s; margin-bottom:-1px;
+  }
+  .main-tab:hover { color:var(--text); }
+  .main-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+
+  /* Form */
+  .add-form { background:var(--surface); border:1px solid var(--border); padding:28px; margin-bottom:32px; position:relative; }
+  .add-form::before { content:''; position:absolute; top:0; left:0; width:4px; height:100%; background:var(--accent); }
+  .form-title { font-family:var(--font); font-weight:700; font-size:13px; letter-spacing:3px; text-transform:uppercase; margin-bottom:20px; color:var(--accent); }
+  .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
+  .form-grid.three { grid-template-columns:1fr 1fr 1fr; }
+  .form-grid.four  { grid-template-columns:1fr 1fr 1fr 1fr; }
+  .field { display:flex; flex-direction:column; gap:6px; }
+  label { font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); }
+  input, select, textarea {
+    background:var(--bg); border:1px solid var(--border); color:var(--text);
+    font-family:var(--font); font-size:13px; padding:10px 14px;
+    outline:none; transition:border-color 0.2s; width:100%;
+    color-scheme: dark;
+  }
+  input:focus, select:focus, textarea:focus { border-color:var(--accent); }
+  select option { background:var(--bg); color:var(--text); }
+  /* Date picker wrapper */
+  .date-wrap { position:relative; display:flex; align-items:stretch; }
+  .date-wrap input[type="date"] {
+    flex:1; cursor:pointer;
+    color-scheme:dark; background:var(--bg); color:var(--text);
+    padding-right:44px;
+  }
+  /* Stretch the native calendar indicator to cover the whole button area */
+  .date-wrap input[type="date"]::-webkit-calendar-picker-indicator {
+    position:absolute; right:0; top:0; bottom:0;
+    width:42px; height:100%; opacity:0; cursor:pointer;
+    margin:0; padding:0;
+  }
+  /* Visual calendar button — purely decorative, the real click target is the indicator above */
+  .date-btn {
+    position:absolute; right:0; top:0; bottom:0;
+    width:42px; background:var(--surface2); border:none; border-left:1px solid var(--border);
+    color:var(--text); font-size:16px; pointer-events:none;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .date-wrap:hover .date-btn { background:var(--border); }
+  .date-wrap input[type="date"]:focus + .date-btn,
+  .date-wrap input[type="date"]:focus { border-color:var(--accent); outline:none; }
+
+  /* Carrier grid with logos */
+  .carrier-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(95px,1fr)); gap:8px; margin-bottom:14px; }
+  .carrier-btn {
+    padding:10px 6px; background:var(--bg); border:1px solid var(--border);
+    color:var(--muted); font-family:var(--font); font-size:10px;
+    cursor:pointer; transition:all 0.15s; text-align:center; letter-spacing:1px;
+    display:flex; flex-direction:column; align-items:center; gap:5px;
+  }
+  .carrier-btn img { width:42px; height:20px; object-fit:contain; filter:grayscale(1) brightness(0.45); transition:filter 0.2s; }
+  .carrier-btn:hover img, .carrier-btn.selected img { filter:grayscale(0) brightness(1); }
+  .carrier-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .carrier-btn.selected { border-color:var(--accent); background:rgba(240,224,64,0.07); color:var(--accent); }
+
+  .btn { background:var(--accent); color:var(--bg); border:none; font-family:var(--font); font-weight:700; font-size:13px; letter-spacing:2px; text-transform:uppercase; padding:14px 28px; cursor:pointer; transition:all 0.15s; width:100%; }
+  .btn:hover { background:#fff; transform:translateY(-1px); }
+
+  /* Tag chips */
+  .tag-row { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:10px; }
+  .tag-chip { padding:4px 12px; border:1px solid var(--border); font-size:10px; letter-spacing:1px; cursor:pointer; transition:all 0.15s; background:var(--bg); color:var(--muted); }
+  .tag-chip:hover { border-color:var(--accent2); color:var(--accent2); }
+  .tag-chip.selected { background:var(--accent2); color:var(--bg); border-color:var(--accent2); font-weight:700; }
+  .tag-input-wrap { display:flex; gap:6px; }
+  .tag-input-wrap input { flex:1; max-width:180px; padding:6px 10px; font-size:11px; }
+  .tag-add-btn { padding:6px 12px; background:var(--surface2); border:1px solid var(--border); color:var(--muted); font-family:var(--font); font-size:10px; cursor:pointer; }
+  .tag-add-btn:hover { border-color:var(--accent2); color:var(--accent2); }
+
+  /* List header */
+  .list-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px; }
+  .list-title { font-family:var(--font); font-weight:700; font-size:13px; letter-spacing:3px; text-transform:uppercase; color:var(--muted); }
+  .count-badge { background:var(--surface2); border:1px solid var(--border); color:var(--muted); font-size:11px; padding:4px 10px; letter-spacing:1px; }
+
+  .filter-bar { display:flex; gap:4px; margin-bottom:14px; flex-wrap:wrap; align-items:center; }
+  .filter-tab { padding:5px 12px; background:transparent; border:1px solid var(--border); color:var(--muted); font-family:var(--font); font-size:10px; letter-spacing:1px; text-transform:uppercase; cursor:pointer; transition:all 0.15s; }
+  .filter-tab:hover { color:var(--text); border-color:var(--text); }
+  .filter-tab.active { background:var(--surface2); color:var(--text); border-color:var(--text); }
+  .filter-tab.tag-filter.active { background:rgba(64,224,208,0.12); color:var(--accent2); border-color:var(--accent2); }
+  .filter-sep { width:1px; height:20px; background:var(--border); margin:0 4px; flex-shrink:0; }
+
+  /* Package card */
+  .package-card { background:var(--surface); border:1px solid var(--border); margin-bottom:10px; overflow:hidden; animation:slideIn 0.25s ease; }
+  @keyframes slideIn { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+
+  .card-header { display:flex; align-items:stretch; }
+
+  /* Logo stripe */
+  .carrier-logo-stripe {
+    width:68px; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; padding:12px 6px; flex-shrink:0;
+    border-right:1px solid var(--border); gap:5px;
+  }
+  .carrier-logo-stripe img { width:46px; height:22px; object-fit:contain; }
+  .carrier-abbr { font-family:var(--font); font-weight:800; font-size:8px; letter-spacing:2px; text-transform:uppercase; text-align:center; }
+
+  .c-ups    .carrier-logo-stripe { background:#130c00; } .c-ups    .carrier-abbr { color:#ffb800; }
+  .c-fedex  .carrier-logo-stripe { background:#0e0520; } .c-fedex  .carrier-abbr { color:#9b59ff; }
+  .c-usps   .carrier-logo-stripe { background:#051228; } .c-usps   .carrier-abbr { color:#4499ff; }
+  .c-dhl    .carrier-logo-stripe { background:#140e00; } .c-dhl    .carrier-abbr { color:#ffcc00; }
+  .c-amazon .carrier-logo-stripe { background:#0a1605; } .c-amazon .carrier-abbr { color:#88cc44; }
+  .c-ontrac .carrier-logo-stripe { background:#160808; } .c-ontrac .carrier-abbr { color:#ff6644; }
+  .c-lasership .carrier-logo-stripe { background:#061420; } .c-lasership .carrier-abbr { color:#44aadd; }
+  .c-estes  .carrier-logo-stripe { background:#0e1500; } .c-estes  .carrier-abbr { color:#99dd33; }
+  .c-xpo    .carrier-logo-stripe { background:#1a0000; } .c-xpo    .carrier-abbr { color:#ff3333; }
+  .c-saia   .carrier-logo-stripe { background:#001220; } .c-saia   .carrier-abbr { color:#3399ff; }
+  .c-tforce .carrier-logo-stripe { background:#100008; } .c-tforce .carrier-abbr { color:#cc44ff; }
+  .c-freight .carrier-logo-stripe { background:#111111; } .c-freight .carrier-abbr { color:#aaaaaa; }
+  .c-other  .carrier-logo-stripe { background:#0d0d18; } .c-other  .carrier-abbr { color:var(--accent2); }
+
+  /* ── Search & filter row ── */
+  .search-row {
+    display:flex; gap:8px; align-items:stretch; margin-bottom:10px; flex-wrap:wrap;
+  }
+  .search-wrap {
+    flex:1; min-width:200px; position:relative; display:flex; align-items:center;
+  }
+  .search-icon {
+    position:absolute; left:12px; font-size:16px; color:var(--muted); pointer-events:none; line-height:1;
+  }
+  .search-input {
+    width:100%; padding:9px 36px 9px 34px; background:var(--surface); border:1px solid var(--border);
+    color:var(--text); font-family:var(--font); font-size:12px; outline:none;
+    transition:border-color 0.2s;
+  }
+  .search-input:focus { border-color:var(--accent); }
+  .search-input::placeholder { color:var(--muted); }
+  .search-clear {
+    position:absolute; right:10px; background:none; border:none; color:var(--muted);
+    font-size:13px; cursor:pointer; padding:2px 4px; line-height:1;
+  }
+  .search-clear:hover { color:var(--text); }
+  .carrier-filter-select {
+    padding:9px 12px; background:var(--surface); border:1px solid var(--border);
+    color:var(--text); font-family:var(--font); font-size:11px;
+    outline:none; cursor:pointer; min-width:130px;
+  }
+  .carrier-filter-select:focus { border-color:var(--accent); }
+  .filter-reset-btn {
+    padding:9px 14px; background:rgba(255,68,85,0.1); border:1px solid rgba(255,68,85,0.3);
+    color:var(--red); font-family:var(--font); font-size:10px; letter-spacing:1px;
+    cursor:pointer; white-space:nowrap; transition:all 0.15s;
+  }
+  .filter-reset-btn:hover { background:var(--red); color:#fff; }
+
+  /* highlight matched search text */
+  mark { background:rgba(240,224,64,0.25); color:var(--accent); border-radius:2px; }
+
+  .card-main { flex:1; padding:14px 80px 14px 18px; min-width:0; }
+  .card-top { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:8px; }
+  .package-name { font-family:var(--font); font-weight:700; font-size:15px; }
+  .tracking-num { font-size:10px; color:var(--muted); letter-spacing:1px; margin-top:2px; word-break:break-all; }
+
+  .card-tags { display:flex; gap:4px; flex-wrap:wrap; margin-bottom:7px; }
+  .card-tag { padding:2px 8px; background:rgba(64,224,208,0.1); border:1px solid rgba(64,224,208,0.25); color:var(--accent2); font-size:9px; letter-spacing:1px; text-transform:uppercase; }
+
+  .dest-badge { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; font-size:9px; letter-spacing:1px; text-transform:uppercase; border:1px solid; }
+  .dest-dropship { border-color:rgba(255,153,51,0.4); color:var(--orange); background:rgba(255,153,51,0.08); }
+  .dest-office   { border-color:rgba(68,153,255,0.4);  color:var(--blue);   background:rgba(68,153,255,0.08); }
+  .dest-other    { border-color:var(--border); color:var(--muted); }
+
+  .status-pill { padding:4px 10px; font-size:10px; letter-spacing:1px; text-transform:uppercase; font-weight:700; white-space:nowrap; flex-shrink:0; border:1px solid; }
+
+  .card-meta { display:flex; gap:14px; flex-wrap:wrap; margin-bottom:8px; }
+  .meta-item { font-size:10px; color:var(--muted); }
+  .meta-item strong { color:var(--text); font-weight:400; }
+
+  .timeline-toggle { background:none; border:none; color:var(--accent); font-family:var(--font); font-size:10px; cursor:pointer; letter-spacing:1px; padding:0; }
+  .timeline-toggle:hover { color:var(--text); }
+
+  .timeline { display:none; border-top:1px solid var(--border); padding:14px 18px 14px 86px; background:var(--bg); }
+  .timeline.open { display:block; }
+  .timeline-add { display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
+  .timeline-add input, .timeline-add select { flex:1; min-width:100px; font-size:11px; padding:7px 10px; }
+  .btn-sm { padding:7px 14px; background:var(--accent); color:var(--bg); border:none; font-family:var(--font); font-weight:700; font-size:10px; letter-spacing:1px; text-transform:uppercase; cursor:pointer; white-space:nowrap; }
+  .btn-sm:hover { background:var(--text); }
+
+  .events-list { display:flex; flex-direction:column; }
+  .event-item { display:grid; grid-template-columns:76px 18px 1fr; gap:0 10px; align-items:start; padding:5px 0; }
+  .event-time { font-size:9px; color:var(--muted); padding-top:2px; text-align:right; }
+  .event-dot-col { display:flex; flex-direction:column; align-items:center; }
+  .event-dot { width:9px; height:9px; border-radius:50%; border:2px solid; flex-shrink:0; margin-top:2px; z-index:1; }
+  .event-line { width:2px; flex:1; min-height:16px; margin-top:2px; background:var(--border); }
+  .event-item:last-child .event-line { display:none; }
+  .event-content { padding-bottom:5px; }
+  .event-status-label { font-size:11px; font-weight:700; margin-bottom:1px; color:var(--text); }
+  .event-location { font-size:10px; color:var(--muted); }
+  .event-note { font-size:10px; color:var(--muted); font-style:italic; margin-top:1px; }
+
+  .card-actions { display:flex; gap:6px; padding:9px 18px 9px 86px; border-top:1px solid var(--border); background:var(--surface); flex-wrap:wrap; align-items:center; }
+  .action-btn { padding:5px 12px; background:var(--surface2); border:1px solid var(--border); color:var(--muted); font-family:var(--font); font-size:10px; letter-spacing:1px; cursor:pointer; transition:all 0.15s; }
+  .action-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .action-btn.del:hover { border-color:var(--red); color:var(--red); }
+  .track-link { font-size:10px; color:var(--accent2); text-decoration:none; letter-spacing:1px; margin-left:auto; }
+  .track-link:hover { text-decoration:underline; }
+
+  /* Status color pairs */
+  .s-pending     { background:rgba(102,102,114,0.1); color:var(--muted);   border-color:var(--border); }
+  .s-transit     { background:rgba(68,153,255,0.1);  color:var(--blue);    border-color:rgba(68,153,255,0.35); }
+  .s-outdelivery { background:rgba(255,153,51,0.1);  color:var(--orange);  border-color:rgba(255,153,51,0.35); }
+  .s-delivered   { background:rgba(68,221,136,0.1);  color:var(--green);   border-color:rgba(68,221,136,0.35); }
+  .s-exception   { background:rgba(255,68,85,0.1);   color:var(--red);     border-color:rgba(255,68,85,0.35); }
+  .s-return      { background:rgba(240,224,64,0.1);  color:var(--accent);  border-color:rgba(240,224,64,0.35); }
+
+  .dot-pending     { border-color:var(--muted); }
+  .dot-transit     { border-color:var(--blue);    background:rgba(68,153,255,0.3); }
+  .dot-outdelivery { border-color:var(--orange);  background:rgba(255,153,51,0.3); }
+  .dot-delivered   { border-color:var(--green);   background:rgba(68,221,136,0.3); }
+  .dot-exception   { border-color:var(--red);     background:rgba(255,68,85,0.3); }
+  .dot-return      { border-color:var(--accent);  background:rgba(240,224,64,0.3); }
+
+  /* Empty state */
+  .empty-state { text-align:center; padding:50px 20px; color:var(--muted); }
+  .empty-state .icon { font-size:40px; margin-bottom:12px; opacity:0.3; }
+  .empty-state h3 { font-family:var(--font); font-size:16px; margin-bottom:6px; color:var(--border); }
+  .empty-state p { font-size:11px; }
+
+  /* Detect hint */
+  #carrierDetect { display:none; font-size:10px; letter-spacing:1px; padding:5px 8px; margin-top:2px; border-left:3px solid var(--accent); color:var(--accent); background:rgba(240,224,64,0.06); }
+
+  /* ── Calendar ── */
+  #calView { display:none; }
+  .cal-nav { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+  .cal-title { font-family:var(--font); font-weight:800; font-size:22px; letter-spacing:-0.5px; }
+  .cal-nav-btn { padding:8px 18px; background:var(--surface2); border:1px solid var(--border); color:var(--text); font-family:var(--font); font-size:12px; cursor:pointer; transition:all 0.15s; }
+  .cal-nav-btn:hover { border-color:var(--accent); color:var(--accent); }
+
+  .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:1px; background:var(--border); border:1px solid var(--border); }
+  .cal-day-header { background:var(--surface2); padding:8px 4px; text-align:center; font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); }
+  .cal-cell { background:var(--surface); min-height:100px; padding:6px; position:relative; transition:background 0.1s; }
+  .cal-cell.other-month { background:var(--bg); opacity:0.45; }
+  .cal-cell.today { background:#131316; }
+  .cal-cell.today .cal-day-num { color:var(--accent); font-weight:700; }
+  .cal-cell.drag-over { background:rgba(240,224,64,0.06); outline:2px dashed var(--accent); outline-offset:-2px; }
+  .cal-day-num { font-size:11px; color:var(--muted); margin-bottom:4px; font-family:var(--font); font-weight:700; }
+
+  .cal-pkg {
+    padding:5px 7px; margin-bottom:4px; font-size:9px;
+    border-left:3px solid; background:var(--surface2); cursor:grab;
+    user-select:none; line-height:1.4; transition:opacity 0.15s, box-shadow 0.15s;
+    position:relative;
+  }
+  .cal-pkg:active { cursor:grabbing; }
+  .cal-pkg.dragging { opacity:0.35; }
+  .cal-pkg.touch-dragging-clone {
+    position:fixed; pointer-events:none; z-index:9999;
+    opacity:0.9; box-shadow:0 8px 24px rgba(0,0,0,0.6);
+    min-width:140px; max-width:200px;
+    transform:rotate(2deg) scale(1.05);
+    border:1px solid var(--accent);
+  }
+
+  .cal-pkg-header { display:flex; align-items:center; gap:5px; margin-bottom:3px; }
+  .cal-pkg-header img { width:24px; height:11px; object-fit:contain; flex-shrink:0; filter:brightness(0.85); }
+  .cal-pkg-name { font-weight:700; font-size:9px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
+  .cal-pkg-meta { font-size:8px; opacity:0.75; line-height:1.5; }
+  .cal-pkg-meta .cal-from { color:var(--muted); }
+  .cal-pkg-meta .cal-dest { }
+  .cal-pkg-tags { display:flex; gap:3px; flex-wrap:wrap; margin-top:3px; }
+  .cal-pkg-tag { padding:1px 5px; background:rgba(64,224,208,0.12); border:1px solid rgba(64,224,208,0.2); color:var(--accent2); font-size:7px; letter-spacing:0.5px; }
+
+  .cal-pkg.s-pending     { border-color:var(--muted);   color:var(--muted); }
+  .cal-pkg.s-transit     { border-color:var(--blue);    color:var(--blue); }
+  .cal-pkg.s-outdelivery { border-color:var(--orange);  color:var(--orange); }
+  .cal-pkg.s-delivered   { border-color:var(--green);   color:var(--green); }
+  .cal-pkg.s-exception   { border-color:var(--red);     color:var(--red); }
+  .cal-pkg.s-return      { border-color:var(--accent);  color:var(--accent); }
+
+  /* Larger cells on mobile so chips are readable */
+  @media(max-width:640px) {
+    .cal-cell { min-height:80px; }
+    .cal-pkg { font-size:8px; padding:4px 5px; }
+    .cal-pkg-name { font-size:8px; }
+  }
+
+  .cal-hint { margin-top:12px; font-size:10px; color:var(--muted); letter-spacing:1px; }
+
+  /* ── Sync bar ── */
+  .sync-bar {
+    display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+    padding:9px 16px; background:var(--surface); border:1px solid var(--border);
+    border-top:none; font-size:10px; letter-spacing:1px;
+  }
+  .sync-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .sync-dot.ok      { background:var(--green);  box-shadow:0 0 5px var(--green); }
+  .sync-dot.err     { background:var(--red);    box-shadow:0 0 5px var(--red); }
+  .sync-dot.syncing { background:var(--orange); animation:sblink 0.8s infinite; }
+  .sync-dot.off     { background:var(--border); }
+  @keyframes sblink { 0%,100%{opacity:1} 50%{opacity:0.25} }
+  .sync-status-text { color:var(--muted); flex:1; min-width:120px; }
+  .sync-btn {
+    padding:5px 13px; border:1px solid var(--border); background:var(--surface2);
+    color:var(--muted); font-family:var(--font); font-size:10px;
+    letter-spacing:1px; cursor:pointer; transition:all 0.15s; white-space:nowrap;
+  }
+  .sync-btn:hover { border-color:var(--accent2); color:var(--accent2); }
+  .sync-btn.hi { border-color:var(--accent); color:var(--accent); }
+  .sync-btn.hi:hover { background:var(--accent); color:var(--bg); }
+  .sync-btn:disabled { opacity:0.35; cursor:not-allowed; }
+
+  /* ── Sync settings panel ── */
+  .sync-panel {
+    display:none; background:var(--surface); border:1px solid var(--border);
+    border-top:none; padding:22px 26px; margin-bottom:0;
+  }
+  .sync-panel.open { display:block; }
+  .sync-panel h3 { font-family:var(--font); font-size:12px; letter-spacing:3px; text-transform:uppercase; color:var(--accent2); margin-bottom:16px; }
+  .sync-step { display:flex; gap:12px; margin-bottom:14px; align-items:flex-start; }
+  .sync-step-num { width:22px; height:22px; border-radius:50%; background:var(--accent2); color:var(--bg); font-family:var(--font); font-weight:800; font-size:11px; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px; }
+  .sync-step-body { flex:1; font-size:11px; color:var(--muted); line-height:1.7; }
+  .sync-step-body strong { color:var(--text); }
+  .sync-step-body code { background:var(--surface2); padding:2px 6px; font-family:var(--font); font-size:10px; color:var(--accent); border:1px solid var(--border); }
+  .sync-step-body a { color:var(--accent2); }
+  .sync-url-row { display:flex; gap:8px; align-items:stretch; margin-top:16px; }
+  .sync-url-row input { flex:1; font-size:11px; padding:9px 12px; }
+  .sync-save-btn { padding:9px 18px; background:var(--accent); color:var(--bg); border:none; font-family:var(--font); font-weight:700; font-size:11px; letter-spacing:1px; cursor:pointer; }
+  .sync-save-btn:hover { background:#fff; }
+  .sync-clear-btn { padding:9px 14px; background:var(--surface2); border:1px solid var(--border); color:var(--muted); font-family:var(--font); font-size:10px; cursor:pointer; }
+  .sync-clear-btn:hover { border-color:var(--red); color:var(--red); }
+  .gas-code { background:var(--bg); border:1px solid var(--border); padding:12px 16px; font-family:var(--font); font-size:10px; color:var(--accent); line-height:1.8; margin:10px 0; overflow-x:auto; white-space:pre; }
+  .copy-code-btn { padding:5px 12px; background:var(--surface2); border:1px solid var(--border); color:var(--muted); font-family:var(--font); font-size:10px; cursor:pointer; }
+  .copy-code-btn:hover { border-color:var(--accent); color:var(--accent); }
+
+  /* ── Edit Modal ── */
+  .modal-overlay {
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85);
+    z-index:2000; align-items:flex-start; justify-content:center;
+    padding:40px 20px 20px; overflow-y:auto;
+  }
+  .modal-overlay.open { display:flex; animation:mFadeIn 0.18s ease; }
+  @keyframes mFadeIn { from{opacity:0} to{opacity:1} }
+  .modal-box {
+    background:var(--surface); border:1px solid var(--border);
+    width:100%; max-width:740px; position:relative;
+    animation:mSlideUp 0.2s ease; flex-shrink:0;
+    overflow:visible;
+  }
+  @keyframes mSlideUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+  .modal-header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 22px; border-bottom:1px solid var(--border);
+    background:var(--surface); position:sticky; top:0; z-index:1;
+  }
+  .modal-title { font-family:var(--font); font-weight:800; font-size:13px; letter-spacing:3px; text-transform:uppercase; color:var(--accent); }
+  .modal-close { background:none; border:none; color:var(--muted); font-size:20px; cursor:pointer; line-height:1; padding:2px 6px; }
+  .modal-close:hover { color:var(--text); }
+  .modal-body { padding:22px; }
+  .modal-footer { display:flex; gap:10px; align-items:center; flex-wrap:wrap; padding-top:4px; }
+  .modal-cancel { padding:12px 20px; background:var(--surface2); border:1px solid var(--border); color:var(--muted); font-family:var(--font); font-size:11px; cursor:pointer; letter-spacing:1px; }
+  .modal-cancel:hover { border-color:var(--border); color:var(--text); }
+
+  /* card header as edit trigger */
+  .card-header { cursor:pointer; position:relative; transition:background 0.15s; }
+  .card-header:hover { background:rgba(240,224,64,0.025); }
+  .edit-hint {
+    position:absolute; right:12px; top:50%; transform:translateY(-50%);
+    font-size:9px; letter-spacing:1px; color:var(--accent); text-transform:uppercase;
+    opacity:0; transition:opacity 0.2s; pointer-events:none;
+    background:rgba(10,10,11,0.85); padding:4px 8px; border:1px solid rgba(240,224,64,0.2);
+    white-space:nowrap;
+  }
+  .package-card:hover .edit-hint { opacity:1; }
+
+  /* archive button */
+  .action-btn.arch:hover { border-color:var(--accent2); color:var(--accent2); }
+  .action-btn.del:hover  { border-color:var(--red);    color:var(--red); }
+
+  /* history tab badge */
+  .tab-badge { display:inline-block; background:var(--accent2); color:var(--bg); font-size:9px; font-weight:700; font-family:var(--font); border-radius:10px; padding:1px 6px; margin-left:5px; vertical-align:middle; }
+
+  /* history / archived cards */
+  .package-card.is-archived { border-style:dashed; opacity:0.78; }
+  .archived-when { font-size:9px; color:var(--accent2); letter-spacing:1px; padding:4px 18px 4px 86px; border-bottom:1px solid rgba(64,224,208,0.15); background:rgba(64,224,208,0.04); }
+  .action-btn.restore:hover { border-color:var(--green); color:var(--green); }
+  .action-btn.perm-del:hover { border-color:var(--red); color:var(--red); background:rgba(255,68,85,0.07); }
+
+  /* history view */
+  #historyView { display:none; }
+
+  footer { margin-top:50px; padding:18px 0 36px; border-top:1px solid var(--border); text-align:center; color:var(--muted); font-size:10px; letter-spacing:1px; }
+
+  /* ── Mobile / PWA improvements ── */
+  @media (max-width: 640px) {
+    .form-grid,.form-grid.three,.form-grid.four { grid-template-columns:1fr; }
+    .cal-cell { min-height:60px; }
+    .cal-pkg img { display:none; }
+    .card-actions { padding-left:18px; }
+    .timeline { padding-left:18px; }
+
+    /* Bigger tap targets on mobile */
+    .action-btn { padding:10px 14px; font-size:11px; }
+    .filter-tab { padding:8px 12px; }
+    .carrier-btn { padding:12px 6px; }
+    .main-tab { padding:16px 16px; font-size:10px; }
+
+    /* Search row stacks nicely */
+    .search-row { flex-direction:column; }
+    .carrier-filter-select { width:100%; }
+
+    /* Bottom safe area padding for iPhone home bar */
+    .container { padding-bottom: env(safe-area-inset-bottom, 16px); }
+
+    /* Full-width add button area */
+    .add-form { padding:20px 16px; }
+
+    /* Sync bar wraps better */
+    .sync-bar { padding:8px 12px; gap:8px; }
+    .sync-btn { padding:6px 10px; font-size:9px; }
+  }
+
+  /* PWA standalone mode — hide browser chrome artifacts */
+  @media (display-mode: standalone) {
+    header { padding-top: max(36px, env(safe-area-inset-top, 36px)); }
+    body { padding-bottom: env(safe-area-inset-bottom, 0px); }
+  }
+
+  /* Prevent text selection on buttons (cleaner mobile feel) */
+  button { -webkit-tap-highlight-color: transparent; user-select:none; }
+
+  /* Smooth scrolling */
+  html { scroll-behavior: smooth; -webkit-overflow-scrolling: touch; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="logo">Logistics Dashboard</div>
+    <h1>TRACK<span>.</span></h1>
+    <p>Manual package tracker — all shipments in one place</p>
+  </header>
+
+  <!-- Sync status bar -->
+  <div class="sync-bar">
+    <div class="sync-dot off" id="syncDot"></div>
+    <span class="sync-status-text" id="syncStatusText">Google Sheets not configured</span>
+    <button class="sync-btn" id="syncPullBtn" onclick="syncPull()" disabled>↓ Load from Sheet</button>
+    <button class="sync-btn" id="syncPushBtn" onclick="syncPush()" disabled>↑ Save to Sheet</button>
+    <button class="sync-btn hi" onclick="toggleSyncPanel()">⚙ Setup Sync</button>
+  </div>
+
+  <!-- Sync settings panel -->
+  <div class="sync-panel" id="syncPanel">
+    <h3>Google Sheets Sync Setup</h3>
+
+    <div class="sync-step">
+      <div class="sync-step-num">1</div>
+      <div class="sync-step-body">
+        <strong>Create a Google Sheet.</strong> Go to <a href="https://sheets.new" target="_blank">sheets.new</a> and create a blank spreadsheet. Name it anything (e.g. "Package Tracker").
+      </div>
+    </div>
+
+    <div class="sync-step">
+      <div class="sync-step-num">2</div>
+      <div class="sync-step-body">
+        <strong>Open Apps Script.</strong> In your sheet, click <strong>Extensions → Apps Script</strong>. Delete any existing code and paste this entire script:
+        <br><br>
+        <button class="copy-code-btn" onclick="copyGasCode()">📋 Copy Script</button>
+        <div class="gas-code" id="gasCode">const SHEET_NAME = 'Packages';
+
+function doGet(e) {
+  const ss    = SpreadsheetApp.getActiveSpreadsheet();
+  let   sheet = ss.getSheetByName(SHEET_NAME);
+  if (!sheet) sheet = ss.insertSheet(SHEET_NAME);
+
+  const action = e.parameter.action;
+
+  if (action === 'read') {
+    const data = sheet.getDataRange().getValues();
+    if (data.length <= 1) return ok({ packages: [], tags: [] });
+    const headers = data[0];
+    const rows    = data.slice(1).map(row => {
+      const obj = {};
+      headers.forEach((h, i) => obj[h] = row[i]);
+      try { obj.events = JSON.parse(obj.events || '[]'); } catch(e){ obj.events=[]; }
+      try { obj.tags   = JSON.parse(obj.tags   || '[]'); } catch(e){ obj.tags=[]; }
+      return obj;
+    });
+    const tagsCell = ss.getSheetByName('Meta') ? ss.getSheetByName('Meta').getRange('A1').getValue() : '[]';
+    let allTags = [];
+    try { allTags = JSON.parse(tagsCell); } catch(e){}
+    return ok({ packages: rows, tags: allTags });
+  }
+
+  return err('Unknown action');
+}
+
+function doPost(e) {
+  const ss      = SpreadsheetApp.getActiveSpreadsheet();
+  let   sheet   = ss.getSheetByName(SHEET_NAME);
+  if (!sheet) sheet = ss.insertSheet(SHEET_NAME);
+
+  const body = JSON.parse(e.postData.contents);
+  const pkgs = body.packages || [];
+  const tags = body.tags     || [];
+
+  // Write packages
+  const headers = ['id','name','tracking','carrier','sender','destination',
+                   'expectedDate','status','notes','tags','addedAt','events'];
+  sheet.clearContents();
+  sheet.appendRow(headers);
+  pkgs.forEach(pkg => {
+    sheet.appendRow(headers.map(h => {
+      const v = pkg[h];
+      return (Array.isArray(v) || typeof v === 'object') ? JSON.stringify(v) : (v || '');
+    }));
+  });
+
+  // Write tags to Meta sheet
+  let meta = ss.getSheetByName('Meta');
+  if (!meta) meta = ss.insertSheet('Meta');
+  meta.getRange('A1').setValue(JSON.stringify(tags));
+
+  return ok({ saved: pkgs.length });
+}
+
+function ok(data)  { return ContentService.createTextOutput(JSON.stringify({ok:true,  ...data})).setMimeType(ContentService.MimeType.JSON); }
+function err(msg)  { return ContentService.createTextOutput(JSON.stringify({ok:false, error:msg})).setMimeType(ContentService.MimeType.JSON); }</div>
+      </div>
+    </div>
+
+    <div class="sync-step">
+      <div class="sync-step-num">3</div>
+      <div class="sync-step-body">
+        <strong>Deploy as a Web App.</strong> Click <strong>Deploy → New deployment</strong>. Set type to <strong>Web app</strong>, set "Execute as" to <strong>Me</strong>, and "Who has access" to <strong>Anyone</strong>. Click Deploy and copy the Web App URL.
+      </div>
+    </div>
+
+    <div class="sync-step">
+      <div class="sync-step-num">4</div>
+      <div class="sync-step-body">
+        <strong>Paste your Web App URL below and click Save.</strong>
+      </div>
+    </div>
+
+    <div class="sync-url-row">
+      <input type="text" id="scriptUrlInput" placeholder="https://script.google.com/macros/s/YOUR_ID/exec">
+      <button class="sync-save-btn" onclick="saveScriptUrl()">Save URL</button>
+      <button class="sync-clear-btn" onclick="clearScriptUrl()">Clear</button>
+    </div>
+  </div>
+
+  <div class="main-tabs">
+    <button class="main-tab active" onclick="switchView('packages',this)">📦 Packages</button>
+    <button class="main-tab"        onclick="switchView('calendar',this)">📅 Calendar</button>
+    <button class="main-tab"        onclick="switchView('history',this)" id="historyTab">🗂 History</button>
+  </div>
+
+  <!-- ══ PACKAGES VIEW ══ -->
+  <div id="pkgView">
+
+    <div class="add-form">
+      <div class="form-title">+ Add Package</div>
+
+      <div class="form-grid">
+        <div class="field">
+          <label>Package Name / Description</label>
+          <input type="text" id="pkgName" placeholder="e.g. MacBook Pro, Birthday Gift...">
+        </div>
+        <div class="field">
+          <label>Tracking Number</label>
+          <input type="text" id="trackNum" placeholder="1Z999AA10123456784"
+                 oninput="detectCarrier(this.value)" autocomplete="off" spellcheck="false">
+          <div id="carrierDetect">⚡ Auto-detected: <strong id="detectedCarrierName"></strong></div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:14px;">
+        <label style="display:block;margin-bottom:8px;">Carrier</label>
+        <div class="carrier-grid" id="carrierGrid">
+          <button class="carrier-btn" data-carrier="UPS">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/United_Parcel_Service_logo_2014.svg/200px-United_Parcel_Service_logo_2014.svg.png" alt="UPS" onerror="this.style.display='none'">
+            <span>UPS</span>
+          </button>
+          <button class="carrier-btn" data-carrier="FedEx">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/b/b9/FedEx_Corporation_-_2016_Logo.svg/200px-FedEx_Corporation_-_2016_Logo.svg.png" alt="FedEx" onerror="this.style.display='none'">
+            <span>FedEx</span>
+          </button>
+          <button class="carrier-btn" data-carrier="USPS">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/60/USPS_2026.svg/200px-USPS_2026.svg.png" alt="USPS" onerror="this.style.display='none'">
+            <span>USPS</span>
+          </button>
+          <button class="carrier-btn" data-carrier="DHL">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/DHL_Logo.svg/200px-DHL_Logo.svg.png" alt="DHL" onerror="this.style.display='none'">
+            <span>DHL</span>
+          </button>
+          <button class="carrier-btn" data-carrier="Amazon">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/Amazon_logo.svg/200px-Amazon_logo.svg.png" alt="Amazon" onerror="this.style.display='none'">
+            <span>Amazon</span>
+          </button>
+          <button class="carrier-btn" data-carrier="OnTrac">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/7/7e/OnTrac_logo.svg/200px-OnTrac_logo.svg.png" alt="OnTrac" onerror="this.style.display='none'">
+            <span>OnTrac</span>
+          </button>
+          <button class="carrier-btn" data-carrier="Estes">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Estes_Express_Lines_logo.svg/200px-Estes_Express_Lines_logo.svg.png" alt="Estes" onerror="this.style.display='none'">
+            <span>Estes</span>
+          </button>
+          <button class="carrier-btn" data-carrier="XPO">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/XPO_logo.svg/200px-XPO_logo.svg.png" alt="XPO" onerror="this.style.display='none'">
+            <span>XPO</span>
+          </button>
+          <button class="carrier-btn" data-carrier="Saia">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Saia_Inc._logo.svg/200px-Saia_Inc._logo.svg.png" alt="Saia" onerror="this.style.display='none'">
+            <span>Saia</span>
+          </button>
+          <button class="carrier-btn" data-carrier="TForce">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/TForce_Freight_logo.svg/200px-TForce_Freight_logo.svg.png" alt="TForce" onerror="this.style.display='none'">
+            <span>TForce</span>
+          </button>
+          <button class="carrier-btn" data-carrier="LaserShip"><span>LaserShip</span></button>
+          <button class="carrier-btn" data-carrier="Other"><span>Other</span></button>
+        </div>
+      </div>
+
+      <div class="form-grid four">
+        <div class="field">
+          <label>Sender / Origin</label>
+          <input type="text" id="sender" placeholder="Amazon, eBay, city...">
+        </div>
+        <div class="field">
+          <label>Destination Type</label>
+          <select id="destination">
+            <option value="">— Select —</option>
+            <option value="Drop Ship">🚚 Drop Ship</option>
+            <option value="Office">🏢 Office</option>
+            <option value="Other">📍 Other</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Expected Delivery</label>
+          <div class="date-wrap">
+            <input type="date" id="expectedDate">
+            <button type="button" class="date-btn" tabindex="-1">📅</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Initial Status</label>
+          <select id="initStatus">
+            <option value="pending">Pending</option>
+            <option value="transit">In Transit</option>
+            <option value="outdelivery">Out for Delivery</option>
+            <option value="delivered">Delivered</option>
+            <option value="exception">Exception</option>
+            <option value="return">Return</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Project Tags -->
+      <div style="margin-bottom:14px;">
+        <label style="display:block;margin-bottom:8px;">Project Tag</label>
+        <div class="tag-row" id="formTagRow"></div>
+        <div class="tag-input-wrap">
+          <input type="text" id="newTagInput" placeholder="New tag..."
+                 onkeydown="if(event.key==='Enter')addNewTag()">
+          <button class="tag-add-btn" onclick="addNewTag()">+ Add Tag</button>
+        </div>
+      </div>
+
+      <div class="field" style="margin-bottom:14px;">
+        <label>Notes (optional)</label>
+        <input type="text" id="pkgNotes" placeholder="Leave at door, fragile, etc.">
+      </div>
+
+      <button class="btn" onclick="addPackage()">ADD PACKAGE</button>
+    </div>
+
+    <div class="list-header">
+      <div class="list-title">Packages</div>
+      <div class="count-badge" id="countBadge">0 TRACKED</div>
+    </div>
+
+    <!-- Search + carrier filter -->
+    <div class="search-row">
+      <div class="search-wrap">
+        <span class="search-icon">⌕</span>
+        <input type="text" id="searchInput" class="search-input"
+               placeholder="Search by name, tracking #, sender, notes..."
+               oninput="setSearch(this.value)">
+        <button class="search-clear" id="searchClearBtn" onclick="clearSearch()" style="display:none">✕</button>
+      </div>
+      <select id="carrierFilter" onchange="setCarrierFilter(this.value)" class="carrier-filter-select">
+        <option value="">All Carriers</option>
+        <option value="UPS">UPS</option>
+        <option value="FedEx">FedEx</option>
+        <option value="USPS">USPS</option>
+        <option value="DHL">DHL</option>
+        <option value="Amazon">Amazon</option>
+        <option value="OnTrac">OnTrac</option>
+        <option value="LaserShip">LaserShip</option>
+        <option value="Estes">Estes</option>
+        <option value="XPO">XPO</option>
+        <option value="Saia">Saia</option>
+        <option value="TForce">TForce</option>
+        <option value="Other">Other</option>
+      </select>
+      <select id="destFilter" onchange="setDestFilter(this.value)" class="carrier-filter-select">
+        <option value="">All Destinations</option>
+        <option value="Drop Ship">🚚 Drop Ship</option>
+        <option value="Office">🏢 Office</option>
+        <option value="Other">📍 Other</option>
+      </select>
+      <button class="filter-reset-btn" onclick="resetAllFilters()" id="resetFiltersBtn" style="display:none">✕ Clear Filters</button>
+    </div>
+
+    <div class="filter-bar" id="filterBar">
+      <button class="filter-tab active" onclick="setStatusFilter('all',this)">All</button>
+      <button class="filter-tab" onclick="setStatusFilter('pending',this)">Pending</button>
+      <button class="filter-tab" onclick="setStatusFilter('transit',this)">Transit</button>
+      <button class="filter-tab" onclick="setStatusFilter('outdelivery',this)">Out for Delivery</button>
+      <button class="filter-tab" onclick="setStatusFilter('delivered',this)">Delivered</button>
+      <button class="filter-tab" onclick="setStatusFilter('exception',this)">Exception</button>
+    </div>
+
+    <div id="packageList"></div>
+  </div>
+
+  <!-- ══ CALENDAR VIEW ══ -->
+  <div id="calView">
+    <div class="cal-nav">
+      <button class="cal-nav-btn" onclick="calShift(-1)">← Prev</button>
+      <div class="cal-title" id="calTitle"></div>
+      <button class="cal-nav-btn" onclick="calShift(1)">Next →</button>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+    <p class="cal-hint">↕ Drag or press-and-hold a package chip to move it to a different delivery date. Only packages with an ETA appear here.</p>
+  </div>
+
+  <!-- ══ HISTORY VIEW ══ -->
+  <div id="historyView">
+    <div class="list-header">
+      <div class="list-title">Archived Packages</div>
+      <div class="count-badge" id="archiveBadge">0 ARCHIVED</div>
+    </div>
+    <div id="historyList"></div>
+  </div>
+
+  <!-- ══ EDIT MODAL ══ -->
+  <div id="editOverlay" class="modal-overlay" onclick="overlayClick(event)">
+    <div class="modal-box" id="editBox">
+      <div class="modal-header">
+        <div class="modal-title">✏ Edit Package</div>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editId">
+        <input type="hidden" id="editIsArchived">
+
+        <div class="form-grid" style="margin-bottom:14px;">
+          <div class="field">
+            <label>Package Name</label>
+            <input type="text" id="editName" placeholder="Package name...">
+          </div>
+          <div class="field">
+            <label>Tracking Number</label>
+            <input type="text" id="editTracking" placeholder="Tracking number..." autocomplete="off" spellcheck="false">
+          </div>
+        </div>
+
+        <div style="margin-bottom:14px;">
+          <label style="display:block;margin-bottom:8px;">Carrier</label>
+          <div class="carrier-grid" id="editCarrierGrid">
+            <button class="carrier-btn" data-carrier="UPS"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/United_Parcel_Service_logo_2014.svg/200px-United_Parcel_Service_logo_2014.svg.png" alt="UPS" onerror="this.style.display='none'"><span>UPS</span></button>
+            <button class="carrier-btn" data-carrier="FedEx"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/b/b9/FedEx_Corporation_-_2016_Logo.svg/200px-FedEx_Corporation_-_2016_Logo.svg.png" alt="FedEx" onerror="this.style.display='none'"><span>FedEx</span></button>
+            <button class="carrier-btn" data-carrier="USPS"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/60/USPS_2026.svg/200px-USPS_2026.svg.png" alt="USPS" onerror="this.style.display='none'"><span>USPS</span></button>
+            <button class="carrier-btn" data-carrier="DHL"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/DHL_Logo.svg/200px-DHL_Logo.svg.png" alt="DHL" onerror="this.style.display='none'"><span>DHL</span></button>
+            <button class="carrier-btn" data-carrier="Amazon"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/Amazon_logo.svg/200px-Amazon_logo.svg.png" alt="Amazon" onerror="this.style.display='none'"><span>Amazon</span></button>
+            <button class="carrier-btn" data-carrier="OnTrac"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/7/7e/OnTrac_logo.svg/200px-OnTrac_logo.svg.png" alt="OnTrac" onerror="this.style.display='none'"><span>OnTrac</span></button>
+            <button class="carrier-btn" data-carrier="Estes"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Estes_Express_Lines_logo.svg/200px-Estes_Express_Lines_logo.svg.png" alt="Estes" onerror="this.style.display='none'"><span>Estes</span></button>
+            <button class="carrier-btn" data-carrier="XPO"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/XPO_logo.svg/200px-XPO_logo.svg.png" alt="XPO" onerror="this.style.display='none'"><span>XPO</span></button>
+            <button class="carrier-btn" data-carrier="Saia"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Saia_Inc._logo.svg/200px-Saia_Inc._logo.svg.png" alt="Saia" onerror="this.style.display='none'"><span>Saia</span></button>
+            <button class="carrier-btn" data-carrier="TForce"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/TForce_Freight_logo.svg/200px-TForce_Freight_logo.svg.png" alt="TForce" onerror="this.style.display='none'"><span>TForce</span></button>
+            <button class="carrier-btn" data-carrier="LaserShip"><span>LaserShip</span></button>
+            <button class="carrier-btn" data-carrier="Other"><span>Other</span></button>
+          </div>
+        </div>
+
+        <div class="form-grid four" style="margin-bottom:14px;">
+          <div class="field">
+            <label>Sender / Origin</label>
+            <input type="text" id="editSender" placeholder="Sender...">
+          </div>
+          <div class="field">
+            <label>Destination</label>
+            <select id="editDestination">
+              <option value="">— Select —</option>
+              <option value="Drop Ship">🚚 Drop Ship</option>
+              <option value="Office">🏢 Office</option>
+              <option value="Other">📍 Other</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Expected Delivery</label>
+            <div class="date-wrap">
+              <input type="date" id="editExpected">
+              <button type="button" class="date-btn" tabindex="-1">📅</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>Status</label>
+            <select id="editStatus">
+              <option value="pending">Pending</option>
+              <option value="transit">In Transit</option>
+              <option value="outdelivery">Out for Delivery</option>
+              <option value="delivered">Delivered</option>
+              <option value="exception">Exception</option>
+              <option value="return">Return</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="margin-bottom:14px;">
+          <label style="display:block;margin-bottom:8px;">Project Tags</label>
+          <div class="tag-row" id="editTagRow"></div>
+        </div>
+
+        <div class="field" style="margin-bottom:20px;">
+          <label>Notes</label>
+          <input type="text" id="editNotes" placeholder="Notes...">
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn" onclick="saveEdit()" style="width:auto;padding:12px 36px;">SAVE CHANGES</button>
+          <button class="modal-cancel" onclick="closeModal()">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>TRACK &mdash; All data stored locally in your browser &mdash; No server required</footer>
+</div>
+
+<script>
+// ─── State ────────────────────────────────────────────────────────────────────
+let packages  = JSON.parse(localStorage.getItem('trackPackages') || '[]');
+let archived  = JSON.parse(localStorage.getItem('trackArchived')  || '[]');
+let allTags   = JSON.parse(localStorage.getItem('trackTags')     || '["Office","Drop Ship","Urgent","Sample"]');
+let selectedCarrier  = '';
+let selectedFormTags = [];
+let currentStatusFilter = 'all';
+let currentTagFilter    = '';
+
+const nowD = new Date();
+let calYear  = nowD.getFullYear();
+let calMonth = nowD.getMonth();
+
+// ─── Lookup tables ────────────────────────────────────────────────────────────
+const carrierKey = {
+  UPS:'ups', FedEx:'fedex', USPS:'usps', DHL:'dhl', Amazon:'amazon',
+  OnTrac:'ontrac', LaserShip:'lasership', Freight:'freight',
+  Estes:'estes', XPO:'xpo', Saia:'saia', TForce:'tforce', Other:'other'
+};
+
+const carrierLogos = {
+  UPS:    'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/United_Parcel_Service_logo_2014.svg/200px-United_Parcel_Service_logo_2014.svg.png',
+  FedEx:  'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b9/FedEx_Corporation_-_2016_Logo.svg/200px-FedEx_Corporation_-_2016_Logo.svg.png',
+  USPS:   'https://upload.wikimedia.org/wikipedia/commons/thumb/6/60/USPS_2026.svg/200px-USPS_2026.svg.png',
+  DHL:    'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/DHL_Logo.svg/200px-DHL_Logo.svg.png',
+  Amazon: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/Amazon_logo.svg/200px-Amazon_logo.svg.png',
+  OnTrac: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7e/OnTrac_logo.svg/200px-OnTrac_logo.svg.png',
+  Estes:  'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Estes_Express_Lines_logo.svg/200px-Estes_Express_Lines_logo.svg.png',
+  XPO:    'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/XPO_logo.svg/200px-XPO_logo.svg.png',
+  Saia:   'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Saia_Inc._logo.svg/200px-Saia_Inc._logo.svg.png',
+  TForce: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/TForce_Freight_logo.svg/200px-TForce_Freight_logo.svg.png',
+};
+
+const trackingUrls = {
+  UPS:      'https://www.ups.com/track?tracknum=',
+  FedEx:    'https://www.fedex.com/fedextrack/?trknbr=',
+  USPS:     'https://tools.usps.com/go/TrackConfirmAction?tLabels=',
+  DHL:      'https://www.dhl.com/us-en/home/tracking.html?tracking-id=',
+  Amazon:   'https://www.amazon.com/gp/your-account/ship-track?orderID=',
+  OnTrac:   'https://www.ontrac.com/tracking/?number=',
+  LaserShip:'https://www.lasership.com/track/',
+  Estes:    'https://www.estes-express.com/myestes/shipment-tracking/?pro=',
+  XPO:      'https://www.xpo.com/tools-and-resources/tracking/?num=',
+  Saia:     'https://www.saia.com/track/details;pro=',
+  TForce:   'https://www.tforcefreight.com/ltl/apps/pickup-and-delivery-tracking?pro=',
+};
+
+const statusLabels = { pending:'Pending', transit:'In Transit', outdelivery:'Out for Delivery', delivered:'Delivered', exception:'Exception', return:'Returning' };
+
+// ─── Carrier auto-detect ──────────────────────────────────────────────────────
+const carrierPatterns = [
+  { carrier:'UPS',       regex:/^1Z[0-9A-Z]{16}$|^(T\d{10}|K\d{10}|J\d{10}|H\d{10})$/i },
+  { carrier:'FedEx',     regex:/^(\d{12}|\d{15}|\d{20}|DT\d{12}|96\d{20}|7489\d{16}|6129\d{16})$/ },
+  { carrier:'USPS',      regex:/^(9[0-9]{19,21}|9[0-9]{15}|82[0-9]{8}|[A-Z]{2}[0-9]{9}US)$/i },
+  { carrier:'DHL',       regex:/^(\d{10}|JD\d{18}|GM\d{16}|00340\d{15}|JVGL\d{12})$/ },
+  { carrier:'Amazon',    regex:/^TBA\d{12,16}$|^D\d{13}$/i },
+  { carrier:'OnTrac',    regex:/^C\d{14}$/ },
+  { carrier:'LaserShip', regex:/^(1LS|L)[0-9]{8,14}$/i },
+  // LTL freight carriers — PRO numbers
+  { carrier:'Estes',     regex:/^(0?[0-9]{9}|1[0-9]{9})$/ },     // 9-10 digit PRO
+  { carrier:'Saia',      regex:/^[0-9]{3}-[0-9]{6}$|^[0-9]{9}$/ }, // NNN-NNNNNN or 9 digits
+  { carrier:'XPO',       regex:/^[0-9]{10}$/ },                    // 10-digit PRO
+  { carrier:'TForce',    regex:/^[0-9]{3}-[0-9]{6}$/ },            // NNN-NNNNNN format
+];
+
+// ─── Search & filter state ────────────────────────────────────────────────────
+let searchQuery      = '';
+let currentCarrierFilter = '';
+let currentDestFilter    = '';
+
+function setSearch(val) {
+  searchQuery = val.trim().toLowerCase();
+  document.getElementById('searchClearBtn').style.display = val ? 'block' : 'none';
+  updateResetBtn();
+  renderList();
+}
+
+function clearSearch() {
+  searchQuery = '';
+  document.getElementById('searchInput').value = '';
+  document.getElementById('searchClearBtn').style.display = 'none';
+  updateResetBtn();
+  renderList();
+}
+
+function setCarrierFilter(val) {
+  currentCarrierFilter = val;
+  updateResetBtn();
+  renderList();
+}
+
+function setDestFilter(val) {
+  currentDestFilter = val;
+  updateResetBtn();
+  renderList();
+}
+
+function resetAllFilters() {
+  searchQuery = ''; currentCarrierFilter = ''; currentDestFilter = '';
+  currentStatusFilter = 'all'; currentTagFilter = '';
+  document.getElementById('searchInput').value = '';
+  document.getElementById('searchClearBtn').style.display = 'none';
+  document.getElementById('carrierFilter').value = '';
+  document.getElementById('destFilter').value = '';
+  document.querySelectorAll('.filter-tab:not(.tag-filter)').forEach((b,i)=>b.classList.toggle('active',i===0));
+  document.querySelectorAll('.filter-tab.tag-filter').forEach(b=>b.classList.remove('active'));
+  updateResetBtn();
+  renderList();
+}
+
+function updateResetBtn() {
+  const active = searchQuery || currentCarrierFilter || currentDestFilter ||
+                 currentStatusFilter !== 'all' || currentTagFilter;
+  document.getElementById('resetFiltersBtn').style.display = active ? 'flex' : 'none';
+}
+
+function highlight(text, query) {
+  if (!query || !text) return text || '';
+  const safe  = query.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  return String(text).replace(new RegExp(`(${safe})`, 'gi'), '<mark>$1</mark>');
+}
+
+function detectCarrier(val) {
+  val = val.trim().toUpperCase();
+  const hint = document.getElementById('carrierDetect');
+  if (!val || val.length < 6) { hint.style.display='none'; return; }
+  for (const {carrier, regex} of carrierPatterns) {
+    if (regex.test(val)) {
+      document.getElementById('detectedCarrierName').textContent = carrier;
+      hint.style.display = 'block';
+      document.querySelectorAll('.carrier-btn').forEach(b => {
+        b.classList.toggle('selected', b.dataset.carrier === carrier);
+      });
+      selectedCarrier = carrier;
+      return;
+    }
+  }
+  hint.style.display = 'none';
+}
+
+document.getElementById('carrierGrid').addEventListener('click', e => {
+  const btn = e.target.closest('.carrier-btn');
+  if (!btn) return;
+  document.querySelectorAll('.carrier-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  selectedCarrier = btn.dataset.carrier;
+  document.getElementById('carrierDetect').style.display = 'none';
+});
+
+// ─── Persistence ──────────────────────────────────────────────────────────────
+function save() {
+  localStorage.setItem('trackPackages', JSON.stringify(packages));
+  localStorage.setItem('trackArchived',  JSON.stringify(archived));
+  localStorage.setItem('trackTags',     JSON.stringify(allTags));
+}
+
+// ─── Tags ─────────────────────────────────────────────────────────────────────
+function addNewTag() {
+  const input = document.getElementById('newTagInput');
+  const name = input.value.trim();
+  if (!name) return;
+  if (!allTags.includes(name)) { allTags.push(name); save(); }
+  if (!selectedFormTags.includes(name)) selectedFormTags.push(name);
+  input.value = '';
+  renderFormTags();
+  renderTagFilters();
+}
+
+function toggleFormTag(tag) {
+  selectedFormTags = selectedFormTags.includes(tag)
+    ? selectedFormTags.filter(t=>t!==tag)
+    : [...selectedFormTags, tag];
+  renderFormTags();
+}
+
+function renderFormTags() {
+  document.getElementById('formTagRow').innerHTML = allTags.map(t =>
+    `<div class="tag-chip ${selectedFormTags.includes(t)?'selected':''}" onclick="toggleFormTag('${t}')">${t}</div>`
+  ).join('');
+}
+
+function renderTagFilters() {
+  const bar = document.getElementById('filterBar');
+  bar.querySelectorAll('.tag-filter,.tag-sep').forEach(el=>el.remove());
+  if (!allTags.length) return;
+  const sep = Object.assign(document.createElement('div'),{className:'filter-sep tag-sep'});
+  bar.appendChild(sep);
+  allTags.forEach(tag => {
+    const btn = Object.assign(document.createElement('button'),{
+      className:'filter-tab tag-filter'+(currentTagFilter===tag?' active':''),
+      textContent:'# '+tag,
+      onclick(){ setTagFilter(tag,this); }
+    });
+    bar.appendChild(btn);
+  });
+}
+
+function setTagFilter(tag, el) {
+  currentTagFilter = currentTagFilter===tag ? '' : tag;
+  document.querySelectorAll('.filter-tab.tag-filter').forEach(b=>b.classList.remove('active'));
+  if (currentTagFilter) el.classList.add('active');
+  updateResetBtn();
+  renderList();
+}
+
+// ─── Add package ─────────────────────────────────────────────────────────────
+function addPackage() {
+  const name    = document.getElementById('pkgName').value.trim();
+  const tracking= document.getElementById('trackNum').value.trim();
+  const sender  = document.getElementById('sender').value.trim();
+  const dest    = document.getElementById('destination').value;
+  const expected= document.getElementById('expectedDate').value;
+  const status  = document.getElementById('initStatus').value;
+  const notes   = document.getElementById('pkgNotes').value.trim();
+
+  if (!name) { alert('Please enter a package name.'); return; }
+
+  packages.unshift({
+    id: Date.now().toString(),
+    name, tracking, carrier: selectedCarrier||'Other',
+    sender, destination:dest, expectedDate:expected, status, notes,
+    tags: [...selectedFormTags],
+    addedAt: new Date().toISOString(),
+    events:[{ id:Date.now().toString(), status, location:sender||'Origin', note:notes||'', time:new Date().toISOString() }]
+  });
+
+  save(); renderList(); renderCalendar();
+
+  ['pkgName','trackNum','sender','pkgNotes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('destination').value='';
+  document.getElementById('expectedDate').value='';
+  document.getElementById('initStatus').value='pending';
+  document.querySelectorAll('.carrier-btn').forEach(b=>b.classList.remove('selected'));
+  selectedCarrier=''; selectedFormTags=[];
+  document.getElementById('carrierDetect').style.display='none';
+  renderFormTags();
+}
+
+// ─── Filters ─────────────────────────────────────────────────────────────────
+function setStatusFilter(f, el) {
+  currentStatusFilter = f;
+  document.querySelectorAll('.filter-tab:not(.tag-filter)').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  updateResetBtn();
+  renderList();
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function fmtDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' '+d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+}
+
+function fmtEta(ds) {
+  if (!ds) return '';
+  const d = new Date(ds+'T12:00:00'), diff=Math.ceil((d-new Date())/86400000);
+  const lbl=d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+  if(diff<0)return lbl+' (overdue)'; if(diff===0)return lbl+' (today)'; if(diff===1)return lbl+' (tomorrow)';
+  return lbl+' (in '+diff+'d)';
+}
+
+function destInfo(dest) {
+  if (!dest) return {cls:'',icon:'',label:''};
+  if (dest==='Drop Ship') return {cls:'dest-dropship',icon:'🚚',label:'Drop Ship'};
+  if (dest==='Office')    return {cls:'dest-office',  icon:'🏢',label:'Office'};
+  return {cls:'dest-other',icon:'📍',label:dest};
+}
+
+function logoImg(carrier, extraCls='') {
+  const src = carrierLogos[carrier];
+  return src ? `<img src="${src}" alt="${carrier}" class="${extraCls}" onerror="this.style.display='none'">` : '';
+}
+
+// ─── Events ──────────────────────────────────────────────────────────────────
+function addEvent(pkgId) {
+  const pkg=packages.find(p=>p.id===pkgId); if(!pkg) return;
+  const status  =document.getElementById('ev-status-'+pkgId).value;
+  const location=document.getElementById('ev-location-'+pkgId).value.trim();
+  const note    =document.getElementById('ev-note-'+pkgId).value.trim();
+  pkg.events.unshift({id:Date.now().toString(),status,location:location||'Unknown',note,time:new Date().toISOString()});
+  pkg.status=status;
+  document.getElementById('ev-location-'+pkgId).value='';
+  document.getElementById('ev-note-'+pkgId).value='';
+  save(); renderList(); renderCalendar();
+  setTimeout(()=>{ const tl=document.getElementById('tl-'+pkgId); if(tl)tl.classList.add('open'); },40);
+}
+
+function updateStatus(pkgId, newStatus) {
+  const pkg=packages.find(p=>p.id===pkgId); if(!pkg) return;
+  pkg.status=newStatus;
+  pkg.events.unshift({id:Date.now().toString(),status:newStatus,location:pkg.destination||'—',note:'Status updated manually',time:new Date().toISOString()});
+  save(); renderList(); renderCalendar();
+}
+
+function deletePackage(pkgId) {
+  if (!confirm('Permanently delete this package? This cannot be undone.')) return;
+  packages = packages.filter(p => p.id !== pkgId);
+  save(); renderList(); renderCalendar();
+}
+
+function archivePackage(pkgId) {
+  const pkg = packages.find(p => p.id === pkgId);
+  if (!pkg) return;
+  pkg.archivedAt = new Date().toISOString();
+  archived.unshift(pkg);
+  packages = packages.filter(p => p.id !== pkgId);
+  save(); renderList(); renderCalendar(); renderHistory(); updateHistoryBadge();
+}
+
+function restorePackage(pkgId) {
+  const pkg = archived.find(p => p.id === pkgId);
+  if (!pkg) return;
+  delete pkg.archivedAt;
+  packages.unshift(pkg);
+  archived = archived.filter(p => p.id !== pkgId);
+  save(); renderList(); renderCalendar(); renderHistory(); updateHistoryBadge();
+}
+
+function deleteArchived(pkgId) {
+  if (!confirm('Permanently delete this archived package? This cannot be undone.')) return;
+  archived = archived.filter(p => p.id !== pkgId);
+  save(); renderHistory(); updateHistoryBadge();
+}
+
+function updateHistoryBadge() {
+  const tab = document.getElementById('historyTab');
+  const existing = tab.querySelector('.tab-badge');
+  if (archived.length) {
+    if (existing) existing.textContent = archived.length;
+    else { const b = document.createElement('span'); b.className = 'tab-badge'; b.textContent = archived.length; tab.appendChild(b); }
+  } else {
+    if (existing) existing.remove();
+  }
+  document.getElementById('archiveBadge').textContent = archived.length + ' ARCHIVED';
+}
+
+// ─── Edit Modal ───────────────────────────────────────────────────────────────
+let editCarrier = '';
+let editTagsSel = [];
+
+function openModal(pkgId, fromArchive) {
+  const list = fromArchive ? archived : packages;
+  const pkg  = list.find(p => p.id === pkgId);
+  if (!pkg) return;
+  document.getElementById('editId').value         = pkgId;
+  document.getElementById('editIsArchived').value = fromArchive ? '1' : '';
+  document.getElementById('editName').value        = pkg.name         || '';
+  document.getElementById('editTracking').value    = pkg.tracking     || '';
+  document.getElementById('editSender').value      = pkg.sender       || '';
+  document.getElementById('editDestination').value = pkg.destination  || '';
+  document.getElementById('editStatus').value      = pkg.status       || 'pending';
+  document.getElementById('editNotes').value       = pkg.notes        || '';
+  editCarrier = pkg.carrier || 'Other';
+  document.querySelectorAll('#editCarrierGrid .carrier-btn').forEach(b =>
+    b.classList.toggle('selected', b.dataset.carrier === editCarrier)
+  );
+  editTagsSel = [...(pkg.tags || [])];
+  renderEditTags();
+  document.getElementById('editOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  // Set date AFTER modal is visible — some browsers ignore value on hidden date inputs
+  requestAnimationFrame(() => {
+    document.getElementById('editExpected').value = pkg.expectedDate || '';
+  });
+}
+
+function closeModal() {
+  document.getElementById('editOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function overlayClick(e) {
+  if (e.target === document.getElementById('editOverlay')) closeModal();
+}
+
+function saveEdit() {
+  const pkgId      = document.getElementById('editId').value;
+  const fromArchive= document.getElementById('editIsArchived').value === '1';
+  const list       = fromArchive ? archived : packages;
+  const pkg        = list.find(p => p.id === pkgId);
+  if (!pkg) return;
+  const oldStatus  = pkg.status;
+  pkg.name         = document.getElementById('editName').value.trim();
+  pkg.tracking     = document.getElementById('editTracking').value.trim();
+  pkg.carrier      = editCarrier;
+  pkg.sender       = document.getElementById('editSender').value.trim();
+  pkg.destination  = document.getElementById('editDestination').value;
+  pkg.expectedDate = document.getElementById('editExpected').value;
+  pkg.status       = document.getElementById('editStatus').value;
+  pkg.notes        = document.getElementById('editNotes').value.trim();
+  pkg.tags         = [...editTagsSel];
+  if (pkg.status !== oldStatus) {
+    pkg.events.unshift({ id: Date.now().toString(), status: pkg.status, location: pkg.destination || '—', note: 'Edited', time: new Date().toISOString() });
+  }
+  save(); closeModal();
+  renderList(); renderCalendar(); renderHistory();
+}
+
+function renderEditTags() {
+  document.getElementById('editTagRow').innerHTML = allTags.map(t =>
+    `<div class="tag-chip ${editTagsSel.includes(t)?'selected':''}" onclick="toggleEditTag('${t}')">${t}</div>`
+  ).join('');
+}
+
+function toggleEditTag(tag) {
+  editTagsSel = editTagsSel.includes(tag) ? editTagsSel.filter(t=>t!==tag) : [...editTagsSel, tag];
+  renderEditTags();
+}
+
+document.getElementById('editCarrierGrid').addEventListener('click', e => {
+  const btn = e.target.closest('.carrier-btn');
+  if (!btn) return;
+  document.querySelectorAll('#editCarrierGrid .carrier-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  editCarrier = btn.dataset.carrier;
+});
+
+// ─── History render ───────────────────────────────────────────────────────────
+function renderHistory() {
+  const list = document.getElementById('historyList');
+  document.getElementById('archiveBadge').textContent = archived.length + ' ARCHIVED';
+  if (!archived.length) {
+    list.innerHTML = `<div class="empty-state"><div class="icon">🗂</div><h3>No archived packages</h3><p>Archived packages will appear here. Use the Archive button on any active package.</p></div>`;
+    return;
+  }
+  list.innerHTML = archived.map(pkg => {
+    const ck  = carrierKey[pkg.carrier] || 'other';
+    const di  = destInfo(pkg.destination);
+    const url = trackingUrls[pkg.carrier] && pkg.tracking ? trackingUrls[pkg.carrier] + encodeURIComponent(pkg.tracking) : null;
+    const tagsHtml = pkg.tags && pkg.tags.length ? `<div class="card-tags">${pkg.tags.map(t=>`<span class="card-tag">${t}</span>`).join('')}</div>` : '';
+    const destHtml = pkg.destination ? `<span class="dest-badge ${di.cls}">${di.icon} ${di.label}</span>` : '';
+    const archivedWhen = pkg.archivedAt ? `Archived ${fmtDate(pkg.archivedAt)}` : 'Archived';
+    return `
+    <div class="package-card is-archived c-${ck}">
+      <div class="archived-when">🗂 ${archivedWhen}</div>
+      <div class="card-header" onclick="openModal('${pkg.id}', true)" title="Click to edit">
+        <div class="carrier-logo-stripe">${logoImg(pkg.carrier)}<div class="carrier-abbr">${pkg.carrier}</div></div>
+        <div class="card-main">
+          <div class="card-top">
+            <div style="min-width:0"><div class="package-name">${pkg.name}</div><div class="tracking-num">${pkg.tracking||'No tracking number'}</div></div>
+            <div class="status-pill s-${pkg.status}">${statusLabels[pkg.status]||pkg.status}</div>
+          </div>
+          ${tagsHtml}
+          <div class="card-meta">
+            ${pkg.sender?`<div class="meta-item">FROM <strong>${pkg.sender}</strong></div>`:''}
+            ${pkg.destination?`<div class="meta-item">${destHtml}</div>`:''}
+            ${pkg.expectedDate?`<div class="meta-item">ETA <strong>${fmtEta(pkg.expectedDate)}</strong></div>`:''}
+            <div class="meta-item">ADDED <strong>${fmtDate(pkg.addedAt)}</strong></div>
+          </div>
+        </div>
+        <div class="edit-hint">✏ tap to edit</div>
+      </div>
+      <div class="card-actions">
+        <button class="action-btn restore" onclick="restorePackage('${pkg.id}')">↩ Restore</button>
+        <button class="action-btn perm-del" onclick="deleteArchived('${pkg.id}')">🗑 Delete Forever</button>
+        ${url?`<a class="track-link" href="${url}" target="_blank" rel="noopener">Track on ${pkg.carrier} →</a>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleTimeline(pkgId) {
+  document.getElementById('tl-'+pkgId).classList.toggle('open');
+}
+
+// ─── Render list ─────────────────────────────────────────────────────────────
+function renderList() {
+  const list=document.getElementById('packageList');
+  document.getElementById('countBadge').textContent=packages.length+' TRACKED';
+
+  let filtered=[...packages];
+
+  // Status filter
+  if(currentStatusFilter!=='all') filtered=filtered.filter(p=>p.status===currentStatusFilter);
+  // Tag filter
+  if(currentTagFilter) filtered=filtered.filter(p=>p.tags&&p.tags.includes(currentTagFilter));
+  // Carrier filter
+  if(currentCarrierFilter) filtered=filtered.filter(p=>p.carrier===currentCarrierFilter);
+  // Destination filter
+  if(currentDestFilter) filtered=filtered.filter(p=>p.destination===currentDestFilter);
+  // Search filter — matches name, tracking, sender, notes, carrier, tags
+  if(searchQuery) {
+    filtered=filtered.filter(p=>{
+      const haystack=[p.name,p.tracking,p.sender,p.notes,p.carrier,p.destination,
+                      ...(p.tags||[])].join(' ').toLowerCase();
+      return haystack.includes(searchQuery);
+    });
+  }
+
+  const q = searchQuery; // shorthand for highlight calls
+
+  if(!packages.length){
+    list.innerHTML=`<div class="empty-state"><div class="icon">📦</div><h3>No packages yet</h3><p>Add your first package above.</p></div>`;
+    return;
+  }
+  if(!filtered.length){
+    list.innerHTML=`<div class="empty-state"><div class="icon">🔍</div><h3>No packages match</h3><p>Try adjusting your search or filters.</p></div>`;
+    return;
+  }
+
+  // Show match count if any filter active
+  const showing = (filtered.length < packages.length)
+    ? `<div style="font-size:10px;color:var(--muted);letter-spacing:1px;margin-bottom:10px;">Showing ${filtered.length} of ${packages.length} packages</div>`
+    : '';
+
+  list.innerHTML = showing + filtered.map(pkg=>{
+    const ck  = carrierKey[pkg.carrier]||'other';
+    const url = trackingUrls[pkg.carrier]&&pkg.tracking ? trackingUrls[pkg.carrier]+encodeURIComponent(pkg.tracking) : null;
+    const di  = destInfo(pkg.destination);
+
+    const evHtml=pkg.events.map(ev=>`
+      <div class="event-item">
+        <div class="event-time">${fmtDate(ev.time)}</div>
+        <div class="event-dot-col"><div class="event-dot dot-${ev.status}"></div><div class="event-line"></div></div>
+        <div class="event-content">
+          <div class="event-status-label">${statusLabels[ev.status]||ev.status}</div>
+          <div class="event-location">${ev.location}</div>
+          ${ev.note?`<div class="event-note">${ev.note}</div>`:''}
+        </div>
+      </div>`).join('');
+
+    const tagsHtml=pkg.tags&&pkg.tags.length
+      ?`<div class="card-tags">${pkg.tags.map(t=>`<span class="card-tag">${highlight(t,q)}</span>`).join('')}</div>`:'';
+
+    const destHtml=pkg.destination
+      ?`<span class="dest-badge ${di.cls}">${di.icon} ${di.label}</span>`:'';
+
+    return `
+    <div class="package-card c-${ck}" id="pkg-${pkg.id}">
+      <div class="card-header" onclick="openModal('${pkg.id}', false)" title="Click to edit">
+        <div class="carrier-logo-stripe">
+          ${logoImg(pkg.carrier)}
+          <div class="carrier-abbr">${pkg.carrier}</div>
+        </div>
+        <div class="card-main">
+          <div class="card-top">
+            <div style="min-width:0">
+              <div class="package-name">${highlight(pkg.name,q)}</div>
+              <div class="tracking-num">${highlight(pkg.tracking||'No tracking number',q)}</div>
+            </div>
+            <div class="status-pill s-${pkg.status}">${statusLabels[pkg.status]||pkg.status}</div>
+          </div>
+          ${tagsHtml}
+          <div class="card-meta">
+            ${pkg.sender?`<div class="meta-item">FROM <strong>${highlight(pkg.sender,q)}</strong></div>`:''}
+            ${pkg.destination?`<div class="meta-item">${destHtml}</div>`:''}
+            ${pkg.expectedDate?`<div class="meta-item">ETA <strong>${fmtEta(pkg.expectedDate)}</strong></div>`:''}
+            <div class="meta-item">ADDED <strong>${fmtDate(pkg.addedAt)}</strong></div>
+          </div>
+          <button class="timeline-toggle" onclick="event.stopPropagation();toggleTimeline('${pkg.id}')">▸ ${pkg.events.length} update${pkg.events.length!==1?'s':''}</button>
+        </div>
+        <div class="edit-hint">✏ tap to edit</div>
+      </div>
+
+      <div class="timeline" id="tl-${pkg.id}">
+        <div class="timeline-add">
+          <select id="ev-status-${pkg.id}">
+            <option value="pending">Pending</option>
+            <option value="transit" selected>In Transit</option>
+            <option value="outdelivery">Out for Delivery</option>
+            <option value="delivered">Delivered</option>
+            <option value="exception">Exception</option>
+            <option value="return">Returning</option>
+          </select>
+          <input type="text" id="ev-location-${pkg.id}" placeholder="Location / facility...">
+          <input type="text" id="ev-note-${pkg.id}" placeholder="Note (optional)">
+          <button class="btn-sm" onclick="addEvent('${pkg.id}')">LOG</button>
+        </div>
+        <div class="events-list">${evHtml}</div>
+      </div>
+
+      <div class="card-actions" onclick="event.stopPropagation()">
+        <button class="action-btn" onclick="updateStatus('${pkg.id}','transit')">In Transit</button>
+        <button class="action-btn" onclick="updateStatus('${pkg.id}','outdelivery')">Out for Delivery</button>
+        <button class="action-btn" onclick="updateStatus('${pkg.id}','delivered')">✓ Delivered</button>
+        <button class="action-btn arch" onclick="archivePackage('${pkg.id}')">🗂 Archive</button>
+        <button class="action-btn del"  onclick="deletePackage('${pkg.id}')">🗑 Delete</button>
+        ${url?`<a class="track-link" href="${url}" target="_blank" rel="noopener">Track on ${pkg.carrier} →</a>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ─── Calendar ─────────────────────────────────────────────────────────────────
+const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DAYS  =['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+function calShift(dir){
+  calMonth+=dir;
+  if(calMonth>11){calMonth=0;calYear++;}
+  if(calMonth<0) {calMonth=11;calYear--;}
+  renderCalendar();
+}
+
+function renderCalendar(){
+  document.getElementById('calTitle').textContent=MONTHS[calMonth]+' '+calYear;
+  const grid=document.getElementById('calGrid');
+  const today=new Date();
+  const daysInM=new Date(calYear,calMonth+1,0).getDate();
+  const startDay=new Date(calYear,calMonth,1).getDay();
+
+  // build ETA lookup
+  const byDate={};
+  packages.forEach(pkg=>{
+    if(!pkg.expectedDate) return;
+    (byDate[pkg.expectedDate]=byDate[pkg.expectedDate]||[]).push(pkg);
+  });
+
+  let html=DAYS.map(d=>`<div class="cal-day-header">${d}</div>`).join('');
+
+  // leading blanks
+  for(let i=0;i<startDay;i++){
+    const d=new Date(calYear,calMonth,1-startDay+i);
+    html+=`<div class="cal-cell other-month"><div class="cal-day-num">${d.getDate()}</div></div>`;
+  }
+
+  for(let d=1;d<=daysInM;d++){
+    const ds=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isToday=today.getFullYear()===calYear&&today.getMonth()===calMonth&&today.getDate()===d;
+    const chips=(byDate[ds]||[]).map(pkg=>{
+      const di = destInfo(pkg.destination);
+      const tagsHtml = (pkg.tags&&pkg.tags.length)
+        ? `<div class="cal-pkg-tags">${pkg.tags.map(t=>`<span class="cal-pkg-tag">${t}</span>`).join('')}</div>` : '';
+      const fromHtml = pkg.sender ? `<div class="cal-from">From: ${pkg.sender}</div>` : '';
+      const destHtml = pkg.destination ? `<div class="cal-dest">${di.icon} ${di.label}</div>` : '';
+      return `
+      <div class="cal-pkg s-${pkg.status}" data-pkgid="${pkg.id}"
+           draggable="true"
+           ondragstart="calDragStart(event,'${pkg.id}')"
+           ontouchstart="calTouchStart(event,'${pkg.id}')"
+           title="${pkg.name} — ${pkg.carrier}">
+        <div class="cal-pkg-header">
+          ${logoImg(pkg.carrier,'cal-logo')}
+          <span class="cal-pkg-name">${pkg.name}</span>
+        </div>
+        <div class="cal-pkg-meta">
+          ${fromHtml}
+          ${destHtml}
+        </div>
+        ${tagsHtml}
+      </div>`;
+    }).join('');
+
+    html+=`<div class="cal-cell${isToday?' today':''}" data-date="${ds}"
+        ondragover="calDragOver(event)" ondragleave="calDragLeave(event)" ondrop="calDrop(event,'${ds}')">
+      <div class="cal-day-num">${d}</div>${chips}</div>`;
+  }
+
+  // trailing blanks
+  const rem=(7-((startDay+daysInM)%7))%7;
+  for(let i=1;i<=rem;i++) html+=`<div class="cal-cell other-month"><div class="cal-day-num">${i}</div></div>`;
+  grid.innerHTML=html;
+}
+
+// ─── Calendar drag — unified mouse + touch (iOS Safari compatible) ────────────
+let dragPkgId   = null;   // which package is being dragged
+let touchClone  = null;   // floating clone element during touch drag
+let lastDropCell= null;   // last cell hovered over during touch drag
+
+// ── Mouse / desktop drag (HTML5 DnD) ──
+function calDragStart(e, pkgId) {
+  dragPkgId = pkgId;
+  e.dataTransfer.setData('pkgId', pkgId);
+  e.dataTransfer.effectAllowed = 'move';
+  // Fade the original after a tick
+  setTimeout(() => {
+    const el = document.querySelector(`.cal-pkg[data-pkgid="${pkgId}"]`);
+    if (el) el.classList.add('dragging');
+  }, 0);
+}
+
+function calDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  const cell = e.currentTarget;
+  if (!cell.classList.contains('other-month')) cell.classList.add('drag-over');
+}
+
+function calDragLeave(e) {
+  e.currentTarget.classList.remove('drag-over');
+}
+
+function calDrop(e, dateStr) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  // Clear dragging style
+  document.querySelectorAll('.cal-pkg.dragging').forEach(el => el.classList.remove('dragging'));
+  const pkgId = e.dataTransfer.getData('pkgId') || dragPkgId;
+  if (!pkgId) return;
+  const pkg = packages.find(p => p.id === pkgId);
+  if (!pkg) return;
+  pkg.expectedDate = dateStr;
+  dragPkgId = null;
+  save(); renderCalendar(); renderList();
+}
+
+// ── Touch drag (iOS Safari) ──
+function calTouchStart(e, pkgId) {
+  // Don't prevent default yet — wait to confirm it's a drag not a scroll
+  dragPkgId = pkgId;
+  const touch    = e.touches[0];
+  const srcEl    = e.currentTarget;
+  const srcRect  = srcEl.getBoundingClientRect();
+
+  // Offset from finger to top-left of chip
+  const offsetX = touch.clientX - srcRect.left;
+  const offsetY = touch.clientY - srcRect.top;
+
+  // Create floating clone
+  touchClone = srcEl.cloneNode(true);
+  touchClone.classList.add('touch-dragging-clone');
+  touchClone.style.width  = srcRect.width  + 'px';
+  touchClone.style.left   = (touch.clientX - offsetX) + 'px';
+  touchClone.style.top    = (touch.clientY - offsetY) + 'px';
+  document.body.appendChild(touchClone);
+  srcEl.classList.add('dragging');
+
+  function onTouchMove(e) {
+    e.preventDefault(); // prevent page scroll while dragging
+    const t = e.touches[0];
+    touchClone.style.left = (t.clientX - offsetX) + 'px';
+    touchClone.style.top  = (t.clientY - offsetY) + 'px';
+
+    // Find which calendar cell is under the finger
+    touchClone.style.display = 'none';
+    const elUnder = document.elementFromPoint(t.clientX, t.clientY);
+    touchClone.style.display = '';
+
+    const cell = elUnder ? elUnder.closest('.cal-cell') : null;
+
+    // Highlight hovered cell
+    if (lastDropCell && lastDropCell !== cell) lastDropCell.classList.remove('drag-over');
+    if (cell && !cell.classList.contains('other-month')) {
+      cell.classList.add('drag-over');
+      lastDropCell = cell;
+    } else {
+      lastDropCell = null;
+    }
+  }
+
+  function onTouchEnd(e) {
+    // Clean up
+    if (touchClone) { touchClone.remove(); touchClone = null; }
+    document.querySelectorAll('.cal-pkg.dragging').forEach(el => el.classList.remove('dragging'));
+    if (lastDropCell) { lastDropCell.classList.remove('drag-over'); }
+
+    // Drop onto cell
+    if (lastDropCell) {
+      const dateStr = lastDropCell.dataset.date;
+      const pkg = packages.find(p => p.id === dragPkgId);
+      if (pkg && dateStr) {
+        pkg.expectedDate = dateStr;
+        save(); renderCalendar(); renderList();
+      }
+    }
+
+    dragPkgId    = null;
+    lastDropCell = null;
+    document.removeEventListener('touchmove', onTouchMove);
+    document.removeEventListener('touchend',  onTouchEnd);
+  }
+
+  document.addEventListener('touchmove', onTouchMove, { passive: false });
+  document.addEventListener('touchend',  onTouchEnd);
+}
+
+// ─── View switch ─────────────────────────────────────────────────────────────
+function switchView(view,el){
+  document.querySelectorAll('.main-tab').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('pkgView').style.display     = view==='packages' ? 'block':'none';
+  document.getElementById('calView').style.display     = view==='calendar' ? 'block':'none';
+  document.getElementById('historyView').style.display = view==='history'  ? 'block':'none';
+  if(view==='calendar') renderCalendar();
+  if(view==='history')  renderHistory();
+}
+
+// ─── PWA Service Worker registration ─────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {
+      // SW not available (e.g. local file open) — silent fail, app still works
+    });
+  });
+}
+let scriptUrl = localStorage.getItem('trackScriptUrl') || '';
+let syncInFlight = false;
+
+function setSyncStatus(state, text) {
+  const dot  = document.getElementById('syncDot');
+  const txt  = document.getElementById('syncStatusText');
+  const pull = document.getElementById('syncPullBtn');
+  const push = document.getElementById('syncPushBtn');
+  dot.className  = 'sync-dot ' + state;
+  txt.textContent = text;
+  const enabled = !!scriptUrl && !syncInFlight;
+  pull.disabled = !enabled;
+  push.disabled = !enabled;
+}
+
+function initSyncUI() {
+  if (scriptUrl) {
+    setSyncStatus('off', 'Sheets connected — not yet synced this session');
+    document.getElementById('syncPullBtn').disabled = false;
+    document.getElementById('syncPushBtn').disabled = false;
+    document.getElementById('scriptUrlInput').value = scriptUrl;
+  } else {
+    setSyncStatus('off', 'Google Sheets not configured — click ⚙ Setup Sync');
+  }
+}
+
+function toggleSyncPanel() {
+  document.getElementById('syncPanel').classList.toggle('open');
+}
+
+function saveScriptUrl() {
+  const url = document.getElementById('scriptUrlInput').value.trim();
+  if (!url || !url.startsWith('https://script.google.com')) {
+    alert('Please enter a valid Google Apps Script Web App URL.\nIt should start with https://script.google.com/macros/s/');
+    return;
+  }
+  scriptUrl = url;
+  localStorage.setItem('trackScriptUrl', scriptUrl);
+  document.getElementById('syncPanel').classList.remove('open');
+  setSyncStatus('off', 'URL saved — click ↓ Load from Sheet to pull your data');
+  document.getElementById('syncPullBtn').disabled = false;
+  document.getElementById('syncPushBtn').disabled = false;
+}
+
+function clearScriptUrl() {
+  if (!confirm('Remove the Google Sheets connection?')) return;
+  scriptUrl = '';
+  localStorage.removeItem('trackScriptUrl');
+  document.getElementById('scriptUrlInput').value = '';
+  setSyncStatus('off', 'Google Sheets not configured');
+  document.getElementById('syncPullBtn').disabled = true;
+  document.getElementById('syncPushBtn').disabled = true;
+}
+
+function copyGasCode() {
+  const code = document.getElementById('gasCode').textContent;
+  navigator.clipboard.writeText(code).then(() => {
+    const btn = document.querySelector('.copy-code-btn');
+    btn.textContent = '✓ Copied!';
+    setTimeout(() => btn.textContent = '📋 Copy Script', 2000);
+  });
+}
+
+async function syncPush() {
+  if (!scriptUrl || syncInFlight) return;
+  syncInFlight = true;
+  setSyncStatus('syncing', 'Saving to Google Sheets…');
+  try {
+    const payload = { packages, tags: allTags };
+    // Use no-cors fetch via a form POST trick to avoid CORS preflight issues
+    const resp = await fetch(scriptUrl, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+      headers: { 'Content-Type': 'text/plain' }  // avoids preflight
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      const t = new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+      setSyncStatus('ok', `Saved ${data.saved} package${data.saved!==1?'s':''} to Sheets at ${t}`);
+      localStorage.setItem('trackLastSync', new Date().toISOString());
+    } else {
+      setSyncStatus('err', 'Sheets error: ' + (data.error || 'Unknown'));
+    }
+  } catch(e) {
+    setSyncStatus('err', 'Network error — check your Apps Script URL and deployment');
+    console.error('Sync push error:', e);
+  }
+  syncInFlight = false;
+}
+
+async function syncPull() {
+  if (!scriptUrl || syncInFlight) return;
+  syncInFlight = true;
+  setSyncStatus('syncing', 'Loading from Google Sheets…');
+  try {
+    const resp = await fetch(scriptUrl + '?action=read');
+    const data = await resp.json();
+    if (data.ok) {
+      if (data.packages && data.packages.length > 0) {
+        if (packages.length > 0) {
+          if (!confirm(`This will replace your ${packages.length} local package(s) with ${data.packages.length} from Google Sheets. Continue?`)) {
+            setSyncStatus('ok', 'Pull cancelled');
+            syncInFlight = false;
+            return;
+          }
+        }
+        packages = data.packages;
+        if (data.tags && data.tags.length) allTags = data.tags;
+        save();
+        renderFormTags();
+        renderTagFilters();
+        renderList();
+        renderCalendar();
+        const t = new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+        setSyncStatus('ok', `Loaded ${packages.length} package${packages.length!==1?'s':''} from Sheets at ${t}`);
+      } else {
+        setSyncStatus('ok', 'Sheet is empty — add packages and push to save them');
+      }
+    } else {
+      setSyncStatus('err', 'Sheets error: ' + (data.error || 'Unknown'));
+    }
+  } catch(e) {
+    setSyncStatus('err', 'Network error — check your Apps Script URL');
+    console.error('Sync pull error:', e);
+  }
+  syncInFlight = false;
+}
+
+// Auto-push whenever data is saved (debounced 2s)
+let autoPushTimer = null;
+const origSave = save;
+save = function() {
+  origSave();
+  if (!scriptUrl) return;
+  clearTimeout(autoPushTimer);
+  setSyncStatus('syncing', 'Changes detected — syncing…');
+  autoPushTimer = setTimeout(syncPush, 2000);
+};
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+renderFormTags();
+renderTagFilters();
+renderList();
+updateHistoryBadge();
+initSyncUI();
+</script>
+</body>
+</html>
