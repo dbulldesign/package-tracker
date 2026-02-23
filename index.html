@@ -432,10 +432,10 @@ footer{margin-top:44px;padding:14px 0 30px;border-top:1px solid var(--border);te
 <div class="sync-bar">
   <div class="sync-dot off" id="syncDot"></div>
   <span class="sync-status-text" id="syncStatusText">Google Sheets not configured</span>
-  <button class="sync-btn" id="syncPullBtn" onclick="syncPull(true)" disabled>&#8595; Pull from Sheets</button>
-  <button class="sync-btn" id="syncPushBtn" onclick="syncPush(true)" disabled>&#8593; Push to Sheets</button>
-  <span id="syncAutoLabel" style="font-size:9px;color:var(--muted);letter-spacing:1px"></span>
-  <button class="sync-btn hi" onclick="toggleSyncPanel()">&#9881; Sync Setup</button>
+  <button class="sync-btn" id="syncNowBtn" onclick="syncNow()" disabled style="background:rgba(64,224,208,.1);border-color:var(--accent2);color:var(--accent2);font-weight:700">&#8645; Sync Now</button>
+  <button class="sync-btn" id="syncPullBtn" onclick="syncPull(true)" disabled>&#8595; Pull</button>
+  <button class="sync-btn" id="syncPushBtn" onclick="syncPush(true)" disabled>&#8593; Push</button>
+  <button class="sync-btn hi" onclick="toggleSyncPanel()">&#9881; Setup</button>
 </div>
 <div class="sync-panel" id="syncPanel">
   <h3>Google Sheets Sync</h3>
@@ -495,9 +495,10 @@ function oops(m){return ContentService.createTextOutput(JSON.stringify({ok:false
     <div class="quick-add-row">
       <input type="text" id="qaName" placeholder="Package name&hellip;" onkeydown="if(event.key==='Enter')quickAdd()">
       <input type="text" id="qaTracking" placeholder="Tracking # (optional)&hellip;" oninput="qaDetect(this.value)" onkeydown="if(event.key==='Enter')quickAdd()" autocomplete="off" spellcheck="false">
+      <button class="scan-btn" onclick="openScanner('qa')" title="Scan barcode">&#128247; Scan</button>
       <button class="qa-btn" onclick="quickAdd()">&#9889; Quick Add</button>
     </div>
-    <div class="qa-hint">Quick Add uses defaults from Settings &mdash; open &#9658; above for all fields</div>
+    <div class="qa-hint">Quick Add uses defaults from Settings &mdash; open &#9658; above for all fields &mdash; &#128247; tap to scan a barcode</div>
     <div class="add-form" id="addForm">
       <div class="form-grid">
         <div class="field"><label>Package Name</label><input type="text" id="pkgName" placeholder="e.g. MacBook Pro, Chair&hellip;"></div>
@@ -842,7 +843,7 @@ function renderTagFilters(){
 function setTagFilter(tag,el){currentTagFilter=currentTagFilter===tag?'':tag;document.querySelectorAll('.filter-tab.tag-filter').forEach(b=>b.classList.remove('active'));if(currentTagFilter)el.classList.add('active');updateResetBtn();renderList();}
 function addPOChip(e,ctx){if(e.key!=='Enter'&&e.key!==',')return;e.preventDefault();const inp=document.getElementById(ctx==='form'?'pkgPO':'editPO'),v=inp.value.trim();if(!v)return;if(ctx==='form'){if(!formPOs.includes(v))formPOs.push(v);rPOC('formPOChips',formPOs,'form');}else{if(!editPOs.includes(v))editPOs.push(v);rPOC('editPOChips',editPOs,'edit');}inp.value='';}
 function removePO(v,ctx){if(ctx==='form'){formPOs=formPOs.filter(p=>p!==v);rPOC('formPOChips',formPOs,'form');}else{editPOs=editPOs.filter(p=>p!==v);rPOC('editPOChips',editPOs,'edit');}}
-function rPOC(id,pos,ctx){document.getElementById(id).innerHTML=(pos||[]).map(p=>`<span class="po-chip">${p}<button class="po-chip-del" onclick="removePO('${p}','${ctx}')">×</button></span>`).join('');}
+function rPOC(id,pos,ctx){document.getElementById(id).innerHTML=(pos||[]).map(p=>`<span class="po-chip">${p}<button class="po-chip-del" data-po="${p}" data-ctx="${ctx}" onclick="removePO(this.dataset.po,this.dataset.ctx)">×</button></span>`).join('');}
 function getPOs(pkg){return(pkg.pos&&pkg.pos.length)?pkg.pos:(pkg.po?[pkg.po]:[]);}
 function handleFiles(e,ctx){Array.from(e.target.files).forEach(file=>{const r=new FileReader();r.onload=ev=>{const a={name:file.name,type:file.type,data:ev.target.result};if(ctx==='form'){formAttachments.push(a);rPP('formPhotoPreview',formAttachments,'form');}else{editAttachments.push(a);rPP('editPhotoPreview',editAttachments,'edit');}};r.readAsDataURL(file);});e.target.value='';}
 function rPP(id,atts,ctx){document.getElementById(id).innerHTML=(atts||[]).map((a,i)=>{const isImg=a.type&&a.type.startsWith('image/');return`<div class="photo-thumb-wrap">${isImg?`<img src="${a.data}" class="photo-thumb" onclick="openLightbox('${a.data}')" title="${a.name}">`:`<div style="padding:5px 9px;background:var(--surface2);border:1px solid var(--border);font-size:9px;color:var(--muted);max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.name}</div>`}<button class="thumb-del" onclick="removeAtt(${i},'${ctx}')">×</button></div>`;}).join('');}
@@ -921,12 +922,12 @@ function renderList(){
     const photosHtml=pkg.attachments&&pkg.attachments.length?`<div class="card-photos">${pkg.attachments.map(a=>a.type&&a.type.startsWith('image/')?`<img src="${a.data}" class="card-photo-thumb" onclick="openLightbox('${a.data}')" title="${a.name}">`:`<div style="padding:5px 8px;background:var(--surface2);border:1px solid var(--border);font-size:9px;color:var(--muted)">${a.name}</div>`).join('')}</div>`:'';
     const checked=selectedIds.has(pkg.id)?'checked':'';
     return `<div class="package-card c-${ck}${tinted}${todayCls}" id="pkg-${pkg.id}">
-      <div class="card-header" onclick="openModal('${pkg.id}',false)">
+      <div class="card-header" data-id="${pkg.id}" onclick="openModal(this.dataset.id,false)">
         <div class="carrier-logo-stripe">${logoImg(pkg.carrier)}<div class="carrier-abbr">${pkg.carrier}</div></div>
         <div class="card-main">
           <div class="card-top">
             <div style="min-width:0"><div class="package-name">${hl(pkg.name,q)}</div><div class="tracking-num">${hl(pkg.tracking||'No tracking #',q)}</div></div>
-            <div style="display:flex;align-items:center;gap:7px;flex-shrink:0"><input type="checkbox" class="pkg-checkbox" ${checked} onclick="event.stopPropagation();toggleSelect('${pkg.id}',this.checked)"><div class="status-pill s-${pkg.status}">${sl(pkg.status)}</div></div>
+            <div style="display:flex;align-items:center;gap:7px;flex-shrink:0"><input type="checkbox" class="pkg-checkbox" ${checked} data-id="${pkg.id}" onclick="event.stopPropagation();toggleSelect(this.dataset.id,this.checked)"><div class="status-pill s-${pkg.status}">${sl(pkg.status)}</div></div>
           </div>
           ${tagsHtml}
           <div class="card-meta">
@@ -938,7 +939,7 @@ function renderList(){
             <div class="meta-item">ADDED <strong>${fmtDate(pkg.addedAt)}</strong></div>
           </div>
           ${noteHtml}
-          <button class="timeline-toggle" onclick="event.stopPropagation();toggleTimeline('${pkg.id}')">&#9658; ${pkg.events.length} update${pkg.events.length!==1?'s':''}</button>
+          <button class="timeline-toggle" data-id="${pkg.id}" onclick="event.stopPropagation();toggleTimeline(this.dataset.id)">&#9658; ${pkg.events.length} update${pkg.events.length!==1?'s':''}</button>
         </div>
         <div class="edit-hint">&#9998; tap to edit</div>
       </div>
@@ -948,17 +949,17 @@ function renderList(){
           <select id="ev-s-${pkg.id}">${Object.keys(defSL).map(k=>`<option value="${k}"${k==='transit'?' selected':''}>${sl(k)}</option>`).join('')}</select>
           <input type="text" id="ev-l-${pkg.id}" placeholder="Location / facility...">
           <input type="text" id="ev-n-${pkg.id}" placeholder="Note (optional)">
-          <button class="btn-sm" onclick="addEvent('${pkg.id}')">LOG</button>
+          <button class="btn-sm" data-id="${pkg.id}" onclick="addEvent(this.dataset.id)">LOG</button>
         </div>
         <div class="events-list">${evHtml}</div>
       </div>
       <div class="card-actions" onclick="event.stopPropagation()">
-        <button class="action-btn" onclick="updateStatus('${pkg.id}','transit')">In Transit</button>
-        <button class="action-btn" onclick="updateStatus('${pkg.id}','outdelivery')">Out for Del.</button>
-        <button class="action-btn" onclick="updateStatus('${pkg.id}','delivered')">&#10003; Delivered</button>
-        <button class="action-btn dup" onclick="duplicatePackage('${pkg.id}')">&#8664; Dup</button>
-        <button class="action-btn arch" onclick="archivePackage('${pkg.id}')">&#128193; Archive</button>
-        <button class="action-btn del" onclick="deletePackage('${pkg.id}')">&#128465;</button>
+        <button class="action-btn" data-id="${pkg.id}" data-action="transit" onclick="updateStatus(this.dataset.id,'transit')">In Transit</button>
+        <button class="action-btn" data-id="${pkg.id}" data-action="outdelivery" onclick="updateStatus(this.dataset.id,'outdelivery')">Out for Del.</button>
+        <button class="action-btn" data-id="${pkg.id}" onclick="updateStatus(this.dataset.id,'delivered')">&#10003; Delivered</button>
+        <button class="action-btn dup" data-id="${pkg.id}" onclick="duplicatePackage(this.dataset.id)">&#8664; Dup</button>
+        <button class="action-btn arch" data-id="${pkg.id}" onclick="archivePackage(this.dataset.id)">&#128193; Archive</button>
+        <button class="action-btn del" data-id="${pkg.id}" onclick="deletePackage(this.dataset.id)">&#128465; Delete</button>
         ${url?`<a class="track-link" href="${url}" target="_blank" rel="noopener">Track on ${pkg.carrier} &rarr;</a>`:''}
       </div>
     </div>`;
@@ -973,11 +974,11 @@ function renderHistory(){
     const di=destInfo(pkg.destination),tagsHtml=pkg.tags&&pkg.tags.length?`<div class="card-tags">${pkg.tags.map(t=>`<span class="card-tag">${t}</span>`).join('')}</div>`:'';
     const destHtml=pkg.destination?`<span class="dest-badge ${di.cls}">${di.icon} ${di.label}</span>`:'';
     return`<div class="package-card archived c-${ck}"><div class="archived-when">\u{1F5C2} Archived ${fmtDate(pkg.archivedAt)}</div>
-      <div class="card-header" onclick="openModal('${pkg.id}',true)"><div class="carrier-logo-stripe">${logoImg(pkg.carrier)}<div class="carrier-abbr">${pkg.carrier}</div></div>
+      <div class="card-header" data-id="${pkg.id}" onclick="openModal(this.dataset.id,true)"><div class="carrier-logo-stripe">${logoImg(pkg.carrier)}<div class="carrier-abbr">${pkg.carrier}</div></div>
         <div class="card-main"><div class="card-top"><div style="min-width:0"><div class="package-name">${pkg.name}</div><div class="tracking-num">${pkg.tracking||'No tracking #'}</div></div><div class="status-pill s-${pkg.status}">${sl(pkg.status)}</div></div>
           ${tagsHtml}<div class="card-meta">${pkg.sender?`<div class="meta-item">FROM <strong>${pkg.sender}</strong></div>`:''}${pkg.destination?`<div class="meta-item">${destHtml}</div>`:''}${pkg.expectedDate?`<div class="meta-item">ETA <strong>${fmtEta(pkg.expectedDate)}</strong></div>`:''}
           <div class="meta-item">ADDED <strong>${fmtDate(pkg.addedAt)}</strong></div></div></div><div class="edit-hint">&#9998; edit</div></div>
-      <div class="card-actions"><button class="action-btn restore" onclick="restorePackage('${pkg.id}')">&#8617; Restore</button><button class="action-btn perm-del" onclick="deleteArchived('${pkg.id}')">&#128465; Delete Forever</button>${url?`<a class="track-link" href="${url}" target="_blank" rel="noopener">Track &rarr;</a>`:''}</div></div>`;
+      <div class="card-actions"><button class="action-btn restore" data-id="${pkg.id}" onclick="restorePackage(this.dataset.id)">&#8617; Restore</button><button class="action-btn perm-del" data-id="${pkg.id}" onclick="deleteArchived(this.dataset.id)">&#128465; Delete Forever</button>${url?`<a class="track-link" href="${url}" target="_blank" rel="noopener">Track &rarr;</a>`:''}</div></div>`;
   }).join('');
 }
 function openModal(pkgId,fromArchive){
@@ -1029,7 +1030,7 @@ function renderCalendar(){
   for(let d=1;d<=daysInM;d++){
     const ds=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const isToday2=today.getFullYear()===calYear&&today.getMonth()===calMonth&&today.getDate()===d;
-    const chips=(byDate[ds]||[]).map(pkg=>`<div class="cal-pkg s-${pkg.status}${isToday2?' today-cal':''}" data-pkgid="${pkg.id}" draggable="true" ondragstart="calDragStart(event,'${pkg.id}')" ontouchstart="calTouchStart(event,'${pkg.id}')" title="${pkg.name}" onclick="openModal('${pkg.id}',false)"><div class="cal-pkg-name">${pkg.name}</div><div style="font-size:8px;opacity:.7">${pkg.carrier} · ${sl(pkg.status)}</div></div>`).join('');
+    const chips=(byDate[ds]||[]).map(pkg=>`<div class="cal-pkg s-${pkg.status}${isToday2?' today-cal':''}" data-pkgid="${pkg.id}" draggable="true" ondragstart="calDragStart(event,'${pkg.id}')" ontouchstart="calTouchStart(event,'${pkg.id}')" title="${pkg.name}" data-id="${pkg.id}" onclick="openModal(this.dataset.id,false)"><div class="cal-pkg-name">${pkg.name}</div><div style="font-size:8px;opacity:.7">${pkg.carrier} · ${sl(pkg.status)}</div></div>`).join('');
     html+=`<div class="cal-cell${isToday2?' today':''}" data-date="${ds}" ondragover="calDragOver(event)" ondragleave="calDragLeave(event)" ondrop="calDrop(event,'${ds}')"><div class="cal-day-num">${d}</div>${chips}</div>`;
   }
   const rem=(7-((startDay+daysInM)%7))%7;
@@ -1044,14 +1045,65 @@ function calDrop(e,ds){e.preventDefault();e.currentTarget.classList.remove('drag
 function calTouchStart(e,pkgId){dragPkgId=pkgId;const touch=e.touches[0],srcEl=e.currentTarget,srcRect=srcEl.getBoundingClientRect(),offsetX=touch.clientX-srcRect.left,offsetY=touch.clientY-srcRect.top;touchClone=srcEl.cloneNode(true);touchClone.classList.add('touch-dragging-clone');touchClone.style.width=srcRect.width+'px';touchClone.style.left=(touch.clientX-offsetX)+'px';touchClone.style.top=(touch.clientY-offsetY)+'px';document.body.appendChild(touchClone);srcEl.classList.add('dragging');function onTouchMove(e){e.preventDefault();const t=e.touches[0];touchClone.style.left=(t.clientX-offsetX)+'px';touchClone.style.top=(t.clientY-offsetY)+'px';touchClone.style.display='none';const elUnder=document.elementFromPoint(t.clientX,t.clientY);touchClone.style.display='';const cell=elUnder?elUnder.closest('.cal-cell'):null;if(lastDropCell&&lastDropCell!==cell)lastDropCell.classList.remove('drag-over');if(cell&&!cell.classList.contains('other-month')){cell.classList.add('drag-over');lastDropCell=cell;}else lastDropCell=null;}function onTouchEnd(){if(touchClone){touchClone.remove();touchClone=null;}document.querySelectorAll('.cal-pkg.dragging').forEach(el=>el.classList.remove('dragging'));if(lastDropCell){lastDropCell.classList.remove('drag-over');const pkg=packages.find(p=>p.id===dragPkgId);if(pkg&&lastDropCell.dataset.date){pkg.expectedDate=lastDropCell.dataset.date;save();renderCalendar();renderList();}}dragPkgId=null;lastDropCell=null;document.removeEventListener('touchmove',onTouchMove);document.removeEventListener('touchend',onTouchEnd);}document.addEventListener('touchmove',onTouchMove,{passive:false});document.addEventListener('touchend',onTouchEnd);}
 function switchView(view,el){document.querySelectorAll('.main-tab').forEach(b=>b.classList.remove('active'));el.classList.add('active');document.getElementById('pkgView').style.display=view==='packages'?'block':'none';document.getElementById('calView').style.display=view==='calendar'?'block':'none';document.getElementById('historyView').style.display=view==='history'?'block':'none';if(view==='calendar')renderCalendar();if(view==='history')renderHistory();}
 let scanStream=null,scanFrame=null;
-function openScanner(){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){alert('Camera not available.');return;}document.getElementById('scanOverlay').classList.add('open');document.getElementById('scanStatus').textContent='Requesting camera...';navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}}).then(stream=>{scanStream=stream;const video=document.getElementById('scanVideo');video.srcObject=stream;video.play();document.getElementById('scanStatus').textContent='Scanning...';if('BarcodeDetector' in window){const bd=new BarcodeDetector({formats:['code_128','code_39','qr_code','ean_13','upc_a']});function scan(){bd.detect(video).then(barcodes=>{if(barcodes.length){const code=barcodes[0].rawValue;closeScanner();document.getElementById('trackNum').value=code;detectCarrier(code);document.getElementById('pkgName').focus();}else scanFrame=requestAnimationFrame(scan);}).catch(()=>{scanFrame=requestAnimationFrame(scan);});}video.onloadedmetadata=()=>{scanFrame=requestAnimationFrame(scan);};}else document.getElementById('scanStatus').textContent='Live scan not supported — enter manually';}).catch(err=>{document.getElementById('scanStatus').textContent='Camera error: '+err.message;});}
-function closeScanner(){document.getElementById('scanOverlay').classList.remove('open');if(scanFrame){cancelAnimationFrame(scanFrame);scanFrame=null;}if(scanStream){scanStream.getTracks().forEach(t=>t.stop());scanStream=null;}}
+let scannerTargetField=null;
+function openScanner(targetFieldId){
+  scannerTargetField=targetFieldId||null;
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+    alert('Camera not supported on this browser/device. Try Chrome on Android or Safari on iOS.');return;
+  }
+  document.getElementById('scanOverlay').classList.add('open');
+  document.getElementById('scanStatus').textContent='Starting camera…';
+  navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}}})
+  .then(stream=>{
+    scanStream=stream;
+    const video=document.getElementById('scanVideo');
+    video.srcObject=stream;
+    video.play();
+    document.getElementById('scanStatus').textContent='Point at a barcode…';
+    if('BarcodeDetector' in window){
+      const bd=new BarcodeDetector({formats:['code_128','code_39','code_93','qr_code','ean_13','ean_8','upc_a','upc_e','itf','data_matrix']});
+      function scan(){
+        bd.detect(video).then(barcodes=>{
+          if(barcodes.length){
+            const code=barcodes[0].rawValue;
+            closeScanner();
+            // Fill whichever field triggered the scan
+            if(scannerTargetField==='qa'){
+              document.getElementById('qaTracking').value=code;
+              qaDetect(code);
+              document.getElementById('qaName').focus();
+            } else {
+              document.getElementById('trackNum').value=code;
+              detectCarrier(code);
+              document.getElementById('pkgName').focus();
+            }
+            scannerTargetField=null;
+          } else {
+            scanFrame=requestAnimationFrame(scan);
+          }
+        }).catch(()=>{scanFrame=requestAnimationFrame(scan);});
+      }
+      video.onloadedmetadata=()=>{scanFrame=requestAnimationFrame(scan);};
+    } else {
+      // Fallback: manual entry prompt
+      document.getElementById('scanStatus').textContent='Live scan not available — tap Cancel and type tracking number';
+    }
+  })
+  .catch(err=>{
+    document.getElementById('scanStatus').textContent='Camera error: '+err.message+'. Check browser permissions.';
+  });
+}
+function closeScanner(){
+  document.getElementById('scanOverlay').classList.remove('open');
+  if(scanFrame){cancelAnimationFrame(scanFrame);scanFrame=null;}
+  if(scanStream){scanStream.getTracks().forEach(t=>t.stop());scanStream=null;}
+}
 function openSettings(){rebuildAll();renderDestList();document.getElementById('overdueThreshInput').value=overdueThresh;updateNotifUI();document.getElementById('settingsOverlay').classList.add('open');document.body.style.overflow='hidden';}
 function closeSettings(){document.getElementById('settingsOverlay').classList.remove('open');document.body.style.overflow='';}
 function saveOverdueThresh(){const v=parseInt(document.getElementById('overdueThreshInput').value)||0;overdueThresh=Math.max(0,v);localStorage.setItem('trackOverdueThresh',overdueThresh);updateStats();}
 function addDest(){const inp=document.getElementById('newDestInput'),v=inp.value.trim();if(!v)return;if(!customDests.includes(v))customDests.push(v);inp.value='';save();renderDestList();rebuildAll();}
 function removeDest(d){customDests=customDests.filter(x=>x!==d);save();renderDestList();rebuildAll();}
-function renderDestList(){const el=document.getElementById('destList');if(!el)return;el.innerHTML=customDests.map(d=>`<div class="dest-item"><span class="dest-item-name">${d}</span><button class="dest-del" onclick="removeDest('${d}')">&#10005;</button></div>`).join('');}
+function renderDestList(){const el=document.getElementById('destList');if(!el)return;el.innerHTML=customDests.map(d=>`<div class="dest-item"><span class="dest-item-name">${d}</span><button class="dest-del" data-dest="${d}" onclick="removeDest(this.dataset.dest)">&#10005;</button></div>`).join('');}
 function saveStatusLabels(){Object.keys(defSL).forEach(k=>{const inp=document.getElementById('slbl_'+k);if(inp)customStatusLabels[k]=inp.value.trim();});save();rebuildAll();renderList();}
 function requestNotif(){if(!('Notification' in window)){alert('Notifications not supported.');return;}Notification.requestPermission().then(p=>{if(p==='granted'){localStorage.setItem('trackNotif','1');updateNotifUI();}});}
 function updateNotifUI(){const granted=Notification.permission==='granted';document.getElementById('notifDot').className='notif-dot '+(granted?'on':'off');document.getElementById('notifLabel').textContent=granted?'Push notifications enabled — overdue alerts active':'Get overdue alerts in your browser';document.getElementById('notifBtn').textContent=granted?'Enabled \u2713':'Enable';}
@@ -1060,7 +1112,7 @@ function closeTemplates(){document.getElementById('templatesOverlay').classList.
 function saveTemplate(){const name=document.getElementById('tplNameInput').value.trim();if(!name){alert('Enter a name.');return;}templates.push({id:Date.now().toString(),name,carrier:selectedCarrier||'Other',destination:document.getElementById('destination').value,tags:[...selectedFormTags],status:document.getElementById('initStatus').value});save();renderTemplateList();document.getElementById('tplNameInput').value='';}
 function applyTemplate(id){const t=templates.find(x=>x.id===id);if(!t)return;selectedCarrier=t.carrier||'Other';document.querySelectorAll('#carrierGrid .carrier-btn').forEach(b=>b.classList.toggle('selected',b.dataset.carrier===selectedCarrier));bDS('destination',t.destination||'');bSS('initStatus',t.status||'pending');selectedFormTags=[...(t.tags||[])];renderFormTags();closeTemplates();if(!document.getElementById('addForm').classList.contains('open'))toggleAddForm();document.getElementById('pkgName').focus();}
 function deleteTemplate(id){templates=templates.filter(t=>t.id!==id);save();renderTemplateList();}
-function renderTemplateList(){const el=document.getElementById('templateList');if(!templates.length){el.innerHTML='<div style="font-size:11px;color:var(--muted);padding:8px 0">No templates yet — fill the form and save one above.</div>';return;}el.innerHTML=templates.map(t=>`<div class="template-item" onclick="applyTemplate('${t.id}')"><div><div class="template-name">${t.name}</div><div class="template-meta">${t.carrier} \u00b7 ${t.destination||'no dest'} \u00b7 ${(t.tags||[]).join(', ')||'no tags'}</div></div><button class="template-del" onclick="event.stopPropagation();deleteTemplate('${t.id}')">&#10005;</button></div>`).join('');}
+function renderTemplateList(){const el=document.getElementById('templateList');if(!templates.length){el.innerHTML='<div style="font-size:11px;color:var(--muted);padding:8px 0">No templates yet — fill the form and save one above.</div>';return;}el.innerHTML=templates.map(t=>`<div class="template-item" data-id="${t.id}" onclick="applyTemplate(this.dataset.id)"><div><div class="template-name">${t.name}</div><div class="template-meta">${t.carrier} \u00b7 ${t.destination||'no dest'} \u00b7 ${(t.tags||[]).join(', ')||'no tags'}</div></div><button class="template-del" data-id="${t.id}" onclick="event.stopPropagation();deleteTemplate(this.dataset.id)">&#10005;</button></div>`).join('');}
 let scriptUrl=localStorage.getItem('trackScriptUrl')||'';
 let syncInFlight=false;
 let lastKnownRemoteTs=parseInt(localStorage.getItem('trackRemoteTs')||'0',10);
@@ -1071,12 +1123,25 @@ function setSyncStatus(state,text){
   document.getElementById('syncDot').className='sync-dot '+state;
   document.getElementById('syncStatusText').textContent=text;
   const en=!!scriptUrl&&!syncInFlight;
+  document.getElementById('syncNowBtn').disabled=!en;
   document.getElementById('syncPullBtn').disabled=!en;
   document.getElementById('syncPushBtn').disabled=!en;
+}
+// Sync Now: push local data then immediately pull to get remote changes
+async function syncNow(){
+  if(!scriptUrl||syncInFlight)return;
+  setSyncStatus('syncing','Syncing…');
+  // First push our local data
+  await syncPush(false);
+  // Then pull to get any changes from other devices
+  await syncPull(false,true);
+  const t=new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+  setSyncStatus('ok','Synced at '+t+' ↑↓');
 }
 function initSyncUI(){
   if(scriptUrl){
     setSyncStatus('off','Sheets connected');
+    document.getElementById('syncNowBtn').disabled=false;
     document.getElementById('syncPullBtn').disabled=false;
     document.getElementById('syncPushBtn').disabled=false;
     document.getElementById('scriptUrlInput').value=scriptUrl;
@@ -1101,6 +1166,7 @@ function saveScriptUrl(){
   localStorage.setItem('trackScriptUrl',scriptUrl);
   document.getElementById('syncPanel').classList.remove('open');
   setSyncStatus('off','URL saved — pulling data...');
+  document.getElementById('syncNowBtn').disabled=false;
   document.getElementById('syncPullBtn').disabled=false;
   document.getElementById('syncPushBtn').disabled=false;
   setTimeout(()=>syncPull(false),500);
@@ -1114,6 +1180,7 @@ function clearScriptUrl(){
   document.getElementById('scriptUrlInput').value='';
   clearInterval(autoPollTimer);
   setSyncStatus('off','Google Sheets not configured');
+  document.getElementById('syncNowBtn').disabled=true;
   document.getElementById('syncPullBtn').disabled=true;
   document.getElementById('syncPushBtn').disabled=true;
 }
@@ -1134,10 +1201,10 @@ async function syncPush(manual=false){
     const data=await resp.json();
     if(data.ok){
       const t=new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+      // After push, set remote ts so we know what's on the sheet
       lastKnownRemoteTs=data.ts||Date.now();
       localStorage.setItem('trackRemoteTs',lastKnownRemoteTs);
       setSyncStatus('ok',`Pushed ${data.saved} pkg${data.saved!==1?'s':''} at ${t}`);
-      document.getElementById('syncAutoLabel').textContent='Auto-poll: ON';
     } else {
       setSyncStatus('err','Push failed: '+(data.error||'Unknown'));
     }
@@ -1148,7 +1215,7 @@ async function syncPush(manual=false){
 }
 
 // PULL — uses GET, merges by timestamp (no confirmation dialog)
-async function syncPull(manual=false){
+async function syncPull(manual=false,forceApply=false){
   if(!scriptUrl||syncInFlight)return;
   syncInFlight=true;
   if(manual)setSyncStatus('syncing','Pulling from Sheets...');
@@ -1163,7 +1230,7 @@ async function syncPull(manual=false){
         syncInFlight=false;return;
       }
       // Only apply if remote is newer than what we last pushed
-      if(remoteTs>lastKnownRemoteTs||manual){
+      if(remoteTs>lastKnownRemoteTs||manual||forceApply){
         packages=data.packages;
         if(data.tags&&data.tags.length)allTags=data.tags;
         if(data.customDests&&data.customDests.length)customDests=data.customDests;
